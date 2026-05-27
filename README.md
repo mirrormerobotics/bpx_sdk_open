@@ -179,7 +179,7 @@ Control APIs:
 | `setRunning()` | Switches to running gait. |
 | `setLeftFlip()` | Requests a left flip. |
 | `setRightFlip()` | Requests a right flip. |
-| `setBipedal()` | Switches to upright bipedal gait. |
+| `setBipedal()` | Switches to bipedal gait. |
 | `setInvBipedal()` | Switches to inverted bipedal gait. |
 | `setPronk()` | Switches to Pronk jumping gait. |
 | `setPace()` | Switches to Pace gait. |
@@ -188,7 +188,6 @@ Control APIs:
 | `setStandUp()` | Requests stand mode. |
 | `setSitDown()` | Requests sit mode. |
 | `setDamping()` | Requests joint damping mode. |
-| `setUpright()` | Requests upright/wait mode. |
 
 Before calling `setZeroPositionsFlag()`, ensure the robot's feet, shanks, and the joints between shanks and thighs are all in contact with the ground.
 `example/motion_level_control_example.cpp` sends a zeroing command at startup by default, so before running

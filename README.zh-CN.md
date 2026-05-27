@@ -188,7 +188,6 @@ if (!motion.connect()) {
 | `setStandUp()` | 请求站立模式。 |
 | `setSitDown()` | 请求坐下模式。 |
 | `setDamping()` | 请求关节阻尼模式。 |
-| `setUpright()` | 请求直立/等待模式。 |
 
 使用 `setZeroPositionsFlag()` 标零前，必须确认机器人足底、小腿以及小腿和大腿连接处均接触地面。
 `example/motion_level_control_example.cpp` 默认会在程序开始阶段发送标零指令，因此运行

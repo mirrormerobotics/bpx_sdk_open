@@ -31,7 +31,6 @@ public:
     bool setStandUp();
     bool setSitDown();
     bool setDamping();
-    bool setUpright();
 
 private:
     uint8_t hostServerMode() const override;
