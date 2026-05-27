@@ -4,7 +4,7 @@
 
 `bpx_sdk_open` provides a lightweight C++ SDK for reading BPX robot state and sending motion-level or joint-level control commands.
 
-Current version: `1.0.1`
+Current version: `1.0.2`
 
 The SDK offers three usage modes:
 
@@ -122,6 +122,7 @@ Main state APIs:
 | `getCurrentGait(uint8_t*)` | Current gait. |
 | `getLastMotionState(uint8_t*)` | Previous motion state. |
 | `getLastGait(uint8_t*)` | Previous gait. |
+| `getSubGait(uint8_t*)` | Current sub-gait. |
 | `getCurrentMotionState(MotionState*)` | Current motion state as an enum. |
 | `getCurrentGait(MotionGait*)` | Current gait as an enum. |
 | `getLastMotionState(MotionState*)` | Previous motion state as an enum. |
@@ -137,8 +138,8 @@ Main state APIs:
 | `getMotionStateTimestamp(uint32_t*)` | Latest motion state timestamp. |
 | `getBatteryTimestamp(uint32_t*)` | Latest battery state timestamp. |
 
-The SDK also provides optional helper APIs that return arrays, such as `getJointPositionArray()`, `getImuRpyArray()`, and
-`getBatteryLevelValue()`. These return `std::optional` and let callers check read success more concisely. Motion state and gait also provide
+The SDK also provides optional helper APIs that return arrays or scalar values, such as `getJointPositionArray()`, `getImuRpyArray()`,
+`getSubGaitValue()`, and `getBatteryLevelValue()`. These return `std::optional` and let callers check read success more concisely. Motion state and gait also provide
 `getCurrentMotionStateEnum()`, `getCurrentGaitEnum()`, `getLastMotionStateEnum()`, and `getLastGaitEnum()`,
 which return `MotionState` or `MotionGait` directly.
 
@@ -174,6 +175,15 @@ Control APIs:
 | `setMotionCommandRate(uint16_t rate_hz)` | Sets the periodic command send rate. |
 | `setVelocityControlFlag(bool enabled)` | Enables or disables the velocity control flag in outgoing packets. |
 | `setZeroPositionsFlag()` | Sets the zero-position flag. Example programs send this before formal motion commands. |
+| `setWalk()` | Switches to normal walking gait. |
+| `setRunning()` | Switches to running gait. |
+| `setLeftFlip()` | Requests a left flip. |
+| `setRightFlip()` | Requests a right flip. |
+| `setBipedal()` | Switches to upright bipedal gait. |
+| `setInvBipedal()` | Switches to inverted bipedal gait. |
+| `setPronk()` | Switches to Pronk jumping gait. |
+| `setPace()` | Switches to Pace gait. |
+| `setBound()` | Switches to Bound gait. |
 | `setVelocity(float x, float y, float yaw)` | Sends body velocity and yaw rate commands. |
 | `setStandUp()` | Requests stand mode. |
 | `setSitDown()` | Requests sit mode. |

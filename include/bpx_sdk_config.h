@@ -10,8 +10,7 @@ constexpr uint16_t DEFAULT_CLIENT_ROBOT_STATE_UDP_PORT = 9873;
 constexpr uint16_t DEFAULT_CLIENT_JOINT_STATE_UDP_PORT = 7895;
 
 // Default robot server IP used by this SDK.
-//constexpr char DEFAULT_SERVER_IP[] = "10.21.20.1";
-constexpr char DEFAULT_SERVER_IP[] = "192.168.1.80";
+constexpr char DEFAULT_SERVER_IP[] = "10.21.20.1";
 
 }  // namespace bpx_sdk
 

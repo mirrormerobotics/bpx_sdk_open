@@ -4,7 +4,7 @@
 
 `bpx_sdk_open` 提供一个轻量级 C++ SDK，用于读取 BPX 机器人状态，并发送运动级或关节级控制指令。
 
-当前版本：`1.0.1`
+当前版本：`1.0.2`
 
 SDK 提供三种使用模式：
 
@@ -122,6 +122,7 @@ if (!robot_state.connect()) {
 | `getCurrentGait(uint8_t*)` | 当前步态。 |
 | `getLastMotionState(uint8_t*)` | 上一次运动状态。 |
 | `getLastGait(uint8_t*)` | 上一次步态。 |
+| `getSubGait(uint8_t*)` | 当前子步态。 |
 | `getCurrentMotionState(MotionState*)` | 当前运动状态，返回枚举类型。 |
 | `getCurrentGait(MotionGait*)` | 当前步态，返回枚举类型。 |
 | `getLastMotionState(MotionState*)` | 上一次运动状态，返回枚举类型。 |
@@ -137,8 +138,8 @@ if (!robot_state.connect()) {
 | `getMotionStateTimestamp(uint32_t*)` | 最新运动状态时间戳。 |
 | `getBatteryTimestamp(uint32_t*)` | 最新电池状态时间戳。 |
 
-SDK 也提供返回数组的可选辅助接口，例如 `getJointPositionArray()`、`getImuRpyArray()` 和
-`getBatteryLevelValue()`。这些接口返回 `std::optional`，适合调用方用更紧凑的方式判断读取是否成功。运动状态和步态也提供
+SDK 也提供返回数组或数值的可选辅助接口，例如 `getJointPositionArray()`、`getImuRpyArray()`、
+`getSubGaitValue()` 和 `getBatteryLevelValue()`。这些接口返回 `std::optional`，适合调用方用更紧凑的方式判断读取是否成功。运动状态和步态也提供
 `getCurrentMotionStateEnum()`、`getCurrentGaitEnum()`、`getLastMotionStateEnum()` 和 `getLastGaitEnum()`，
 可直接返回 `MotionState` 或 `MotionGait`。
 
@@ -174,6 +175,15 @@ if (!motion.connect()) {
 | `setMotionCommandRate(uint16_t rate_hz)` | 设置周期性指令发送频率。 |
 | `setVelocityControlFlag(bool enabled)` | 启用或关闭发送数据包中的速度控制标志。 |
 | `setZeroPositionsFlag()` | 设置零位置标志，示例程序会在发送正式运动指令前先发送该标志。 |
+| `setWalk()` | 切换到普通行走步态。 |
+| `setRunning()` | 切换到跑步步态。 |
+| `setLeftFlip()` | 请求左侧翻动作。 |
+| `setRightFlip()` | 请求右侧翻动作。 |
+| `setBipedal()` | 切换到双足正立步态。 |
+| `setInvBipedal()` | 切换到双足倒立步态。 |
+| `setPronk()` | 切换到 Pronk 跳跃步态。 |
+| `setPace()` | 切换到 Pace 步态。 |
+| `setBound()` | 切换到 Bound 步态。 |
 | `setVelocity(float x, float y, float yaw)` | 发送机身速度/偏航速度指令。 |
 | `setStandUp()` | 请求站立模式。 |
 | `setSitDown()` | 请求坐下模式。 |

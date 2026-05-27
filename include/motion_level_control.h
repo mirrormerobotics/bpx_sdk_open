@@ -18,6 +18,15 @@ public:
     void setMotionCommandRate(uint16_t rate_hz);
     void setVelocityControlFlag(bool enabled);
     void setZeroPositionsFlag();
+    void setWalk();
+    void setRunning();
+    void setLeftFlip();
+    void setRightFlip();
+    void setBipedal();
+    void setInvBipedal();
+    void setPronk();
+    void setPace();
+    void setBound();
     bool setVelocity(float x, float y, float yaw);
     bool setStandUp();
     bool setSitDown();

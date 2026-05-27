@@ -42,6 +42,7 @@ public:
     bool getCurrentGait(uint8_t* current_gait) const;
     bool getLastMotionState(uint8_t* last_state) const;
     bool getLastGait(uint8_t* last_gait) const;
+    bool getSubGait(uint8_t* sub_gait) const;
     bool getCurrentMotionState(MotionState* current_state) const;
     bool getCurrentGait(MotionGait* current_gait) const;
     bool getLastMotionState(MotionState* last_state) const;
@@ -74,6 +75,7 @@ public:
     std::optional<uint8_t> getCurrentGaitValue() const;
     std::optional<uint8_t> getLastMotionStateValue() const;
     std::optional<uint8_t> getLastGaitValue() const;
+    std::optional<uint8_t> getSubGaitValue() const;
     std::optional<MotionState> getCurrentMotionStateEnum() const;
     std::optional<MotionGait> getCurrentGaitEnum() const;
     std::optional<MotionState> getLastMotionStateEnum() const;

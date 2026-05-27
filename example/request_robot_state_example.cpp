@@ -68,10 +68,13 @@ int main(int argc, char** argv) {
 
         uint8_t current_state = 0;
         uint8_t current_gait = 0;
+        uint8_t sub_gait = 0;
         if (robot_state.getCurrentMotionState(&current_state) &&
-            robot_state.getCurrentGait(&current_gait)) {
+            robot_state.getCurrentGait(&current_gait) &&
+            robot_state.getSubGait(&sub_gait)) {
             std::cout << "  motion_state=" << static_cast<uint32_t>(current_state)
                       << " gait=" << static_cast<uint32_t>(current_gait)
+                      << " sub_gait=" << static_cast<int32_t>(static_cast<int8_t>(sub_gait))
                       << std::endl;
         }
 
