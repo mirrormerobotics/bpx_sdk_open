@@ -4,7 +4,7 @@
 
 `bpx_sdk_open` provides a lightweight C++ SDK for reading BPX robot state and sending motion-level or joint-level control commands.
 
-Current version: `1.0.2`
+Current version: `1.0.3`
 
 The SDK offers three usage modes:
 
@@ -49,9 +49,20 @@ Public configuration is defined in `include/bpx_sdk_config.h`.
 
 Command destination ports are fixed on the robot side and are not exposed as public SDK configuration.
 
-The robot's wireless IP is `192.168.0.1`, and the wired IP is `10.21.20.1`. The SDK default robot IP is
-`10.21.20.1`. To change the default IP, edit the configuration in `include/bpx_sdk_config.h`, or call the
-`setRobotIp` API in your program to set the target robot IP.
+The SDK default robot IP is `10.21.20.1` (RJ45 direct connection). To change the default IP, edit the
+configuration in `include/bpx_sdk_config.h`, or call the `setRobotIp` API in your program to set the target
+robot IP. See [Network Connection and IP](#network-connection-and-ip) for the IP to use with each connection method.
+
+## Network Connection and IP
+
+The SDK communicates with the BPX over Ethernet or WiFi. Choose the robot IP for your connection method and
+configure it via `setRobotIp` or `DEFAULT_SERVER_IP` before connecting:
+
+| Connection | Description | Robot IP |
+| --- | --- | --- |
+| RJ45 direct | Development host connected to the robot via an RJ45 cable | `10.21.20.1` |
+| Robot AP hotspot | Development host connected to the robot's WiFi AP | `10.21.40.1` |
+| Station WiFi | Robot configured in Station mode and joined a WiFi network; host and robot on the same WiFi | Use the IP assigned to the robot on that WiFi |
 
 ## Motion State and Gait Types
 
@@ -280,4 +291,4 @@ CMake automatically links the shared library for the current system architecture
 
 ## Running
 
-The SDK communicates with the BPX over the network. If the robot IP differs from `DEFAULT_SERVER_IP`, set the robot IP before connecting. Before running your program, `ping` the BPX IP from the development host to verify network connectivity, then call `connect()`.
+The SDK communicates with the BPX over the network. Choose the correct robot IP per [Network Connection and IP](#network-connection-and-ip); if it differs from `DEFAULT_SERVER_IP`, call `setRobotIp` before connecting. Before running your program, `ping` that IP from the development host to verify network connectivity, then call `connect()`.
