@@ -19,6 +19,7 @@ public:
     virtual bool connect();
     virtual void disconnect();
     void setRobotStateUploadPort(uint16_t);
+    virtual void setJointStateUploadPort(uint16_t);
     void setRobotStateUploadRate(uint16_t rate_hz);
     void setTcpLocalPort(uint16_t port);
     void setSessionId(uint16_t);

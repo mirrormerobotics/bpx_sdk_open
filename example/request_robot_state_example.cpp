@@ -1,5 +1,6 @@
 #include "request_robot_state.h"
 #include "bpx_sdk_version.h"
+#include "example_options.h"
 
 #include <chrono>
 #include <cstdint>
@@ -18,9 +19,12 @@ void printVersion() {
 }  // namespace
 
 int main(int argc, char** argv) {
-    if (argc != 1) {
-        std::cerr << argv[0] << " does not accept command line arguments." << std::endl;
+    bpx_sdk::example::Options options;
+    if (!bpx_sdk::example::parseOptions(argc, argv, false, &options)) {
         return 1;
+    }
+    if (options.help_requested) {
+        return 0;
     }
 
     printVersion();
@@ -28,16 +32,22 @@ int main(int argc, char** argv) {
     bpx_sdk::RequestRobotState robot_state;
 
     // Set the target robot IP.
-    robot_state.setRobotIp(bpx_sdk::DEFAULT_SERVER_IP);
+    robot_state.setRobotIp(options.robot_ip.c_str());
 
     // Set the local port for receiving robot state packets.
-    robot_state.setRobotStateUploadPort(bpx_sdk::DEFAULT_CLIENT_ROBOT_STATE_UDP_PORT);
+    robot_state.setRobotStateUploadPort(options.robot_state_port);
 
     // Set the local control connection port. Use 0 for automatic selection.
-    robot_state.setTcpLocalPort(0);
+    robot_state.setTcpLocalPort(options.tcp_local_port);
 
     // Set the requested robot state upload rate.
-    robot_state.setRobotStateUploadRate(100);
+    robot_state.setRobotStateUploadRate(options.state_rate_hz);
+
+    std::cout << "robot_ip=" << options.robot_ip
+              << " state_port=" << options.robot_state_port
+              << " tcp_local_port=" << options.tcp_local_port
+              << " state_rate=" << options.state_rate_hz
+              << std::endl;
 
     if (!robot_state.connect()) {
         std::cerr << "failed to connect request robot state" << std::endl;

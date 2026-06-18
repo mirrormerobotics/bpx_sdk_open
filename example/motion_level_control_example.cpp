@@ -1,5 +1,6 @@
 #include "motion_level_control.h"
 #include "bpx_sdk_version.h"
+#include "example_options.h"
 
 #include <chrono>
 #include <cstdint>
@@ -27,9 +28,12 @@ void printVersion() {
 }  // namespace
 
 int main(int argc, char** argv) {
-    if (argc != 1) {
-        std::cerr << argv[0] << " does not accept command line arguments." << std::endl;
+    bpx_sdk::example::Options options;
+    if (!bpx_sdk::example::parseOptions(argc, argv, false, &options)) {
         return 1;
+    }
+    if (options.help_requested) {
+        return 0;
     }
 
     printVersion();
@@ -37,19 +41,25 @@ int main(int argc, char** argv) {
     bpx_sdk::MotionLevelControl motion_level_control;
 
     // Set the target robot IP.
-    motion_level_control.setRobotIp(bpx_sdk::DEFAULT_SERVER_IP);
+    motion_level_control.setRobotIp(options.robot_ip.c_str());
 
     // Set the local port for receiving robot state packets.
-    motion_level_control.setRobotStateUploadPort(bpx_sdk::DEFAULT_CLIENT_ROBOT_STATE_UDP_PORT);
+    motion_level_control.setRobotStateUploadPort(options.robot_state_port);
 
     // Set the local control connection port. Use 0 for automatic selection.
-    motion_level_control.setTcpLocalPort(0);
+    motion_level_control.setTcpLocalPort(options.tcp_local_port);
 
     // Set the requested robot state upload rate.
-    motion_level_control.setRobotStateUploadRate(100);
+    motion_level_control.setRobotStateUploadRate(options.state_rate_hz);
 
     // Set the motion command send rate and velocity control mode.
     motion_level_control.setMotionCommandRate(50);
+
+    std::cout << "robot_ip=" << options.robot_ip
+              << " state_port=" << options.robot_state_port
+              << " tcp_local_port=" << options.tcp_local_port
+              << " state_rate=" << options.state_rate_hz
+              << std::endl;
 
     if (!motion_level_control.connect()) {
         std::cerr << "failed to connect motion level control" << std::endl;
@@ -148,11 +158,11 @@ int main(int argc, char** argv) {
                 if (!phase_announced) {
                     std::cout << "send left-flip command for 2 seconds" << std::endl;
                     phase_announced = true;
+                    // motion_level_control.setLeftFlip();
+                    // motion_level_control.setRightFlip();
+                    // motion_level_control.setBound();
+                    // motion_level_control.setInvBipedal();
                 }
-                // motion_level_control.setLeftFlip();
-                // motion_level_control.setRightFlip();
-                // motion_level_control.setBound();
-                // motion_level_control.setInvBipedal();
                 if (phase_elapsed >= std::chrono::seconds(1)) {
                     motion_level_control.setWalk();
                     phase = DemoPhase::kSitDown;

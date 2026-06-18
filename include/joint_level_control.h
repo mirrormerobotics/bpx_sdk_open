@@ -15,6 +15,7 @@ public:
 
     bool connect() override;
     void disconnect() override;
+    void setJointStateUploadPort(uint16_t port) override;
 
     bool setJointCommand(const std::array<float, 12>& kp,
                          const std::array<float, 12>& pos,

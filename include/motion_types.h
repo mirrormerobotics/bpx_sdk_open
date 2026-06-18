@@ -23,7 +23,6 @@ enum class MotionGait : uint8_t {
     WalkPhase = 6,
     PoseTracking = 7,
     Running = 8,
-    WalkPeriod = 10,
 };
 
 enum class JointIndex : uint8_t {

@@ -13,36 +13,65 @@ find_package(Threads REQUIRED)
 add_library(bpx_sdk SHARED IMPORTED)
 
 string(TOLOWER "${CMAKE_SYSTEM_PROCESSOR}" BPX_SDK_ARCH)
-set(BPX_SDK_LIBRARY_CANDIDATES
-    "${CMAKE_CURRENT_LIST_DIR}/lib/libbpx_sdk_${BPX_SDK_ARCH}.so"
-)
-
 if(BPX_SDK_ARCH MATCHES "^(amd64|x64)$")
-    list(APPEND BPX_SDK_LIBRARY_CANDIDATES
-        "${CMAKE_CURRENT_LIST_DIR}/lib/libbpx_sdk_x86_64.so"
+    set(BPX_SDK_ARCH x86_64)
+elseif(BPX_SDK_ARCH STREQUAL "arm64")
+    set(BPX_SDK_ARCH aarch64)
+endif()
+
+if(WIN32)
+    set(BPX_SDK_RUNTIME_LIBRARY_CANDIDATES
+        "${CMAKE_CURRENT_LIST_DIR}/bin/bpx_sdk_${BPX_SDK_ARCH}.dll"
+        "${CMAKE_CURRENT_LIST_DIR}/lib/bpx_sdk_${BPX_SDK_ARCH}.dll"
     )
-elseif(BPX_SDK_ARCH MATCHES "^(arm64)$")
-    list(APPEND BPX_SDK_LIBRARY_CANDIDATES
-        "${CMAKE_CURRENT_LIST_DIR}/lib/libbpx_sdk_aarch64.so"
+    set(BPX_SDK_IMPORT_LIBRARY_CANDIDATES
+        "${CMAKE_CURRENT_LIST_DIR}/lib/bpx_sdk_${BPX_SDK_ARCH}.lib"
+        "${CMAKE_CURRENT_LIST_DIR}/bin/bpx_sdk_${BPX_SDK_ARCH}.lib"
+    )
+else()
+    set(BPX_SDK_LIBRARY_CANDIDATES
+        "${CMAKE_CURRENT_LIST_DIR}/lib/libbpx_sdk_${BPX_SDK_ARCH}.so"
     )
 endif()
 
-foreach(BPX_SDK_LIBRARY_CANDIDATE IN LISTS BPX_SDK_LIBRARY_CANDIDATES)
-    if(EXISTS "${BPX_SDK_LIBRARY_CANDIDATE}")
-        set(BPX_SDK_LIBRARY_PATH "${BPX_SDK_LIBRARY_CANDIDATE}")
+foreach(BPX_SDK_RUNTIME_LIBRARY_CANDIDATE IN LISTS BPX_SDK_RUNTIME_LIBRARY_CANDIDATES)
+    if(EXISTS "${BPX_SDK_RUNTIME_LIBRARY_CANDIDATE}")
+        set(BPX_SDK_RUNTIME_LIBRARY_PATH "${BPX_SDK_RUNTIME_LIBRARY_CANDIDATE}")
         break()
     endif()
 endforeach()
 
-if(NOT BPX_SDK_LIBRARY_PATH)
-    message(FATAL_ERROR "No BPX SDK shared library found for architecture: ${CMAKE_SYSTEM_PROCESSOR}")
-endif()
+foreach(BPX_SDK_IMPORT_LIBRARY_CANDIDATE IN LISTS BPX_SDK_IMPORT_LIBRARY_CANDIDATES BPX_SDK_LIBRARY_CANDIDATES)
+    if(EXISTS "${BPX_SDK_IMPORT_LIBRARY_CANDIDATE}")
+        set(BPX_SDK_IMPORT_LIBRARY_PATH "${BPX_SDK_IMPORT_LIBRARY_CANDIDATE}")
+        break()
+    endif()
+endforeach()
 
 set_target_properties(bpx_sdk PROPERTIES
-    IMPORTED_LOCATION "${BPX_SDK_LIBRARY_PATH}"
     INTERFACE_INCLUDE_DIRECTORIES "${CMAKE_CURRENT_LIST_DIR}/include"
     INTERFACE_LINK_LIBRARIES Threads::Threads
 )
+
+if(WIN32)
+    if(NOT BPX_SDK_RUNTIME_LIBRARY_PATH)
+        message(FATAL_ERROR "No BPX SDK runtime DLL found for architecture: ${CMAKE_SYSTEM_PROCESSOR}")
+    endif()
+    if(NOT BPX_SDK_IMPORT_LIBRARY_PATH)
+        message(FATAL_ERROR "No BPX SDK import library found for architecture: ${CMAKE_SYSTEM_PROCESSOR}")
+    endif()
+    set_target_properties(bpx_sdk PROPERTIES
+        IMPORTED_LOCATION "${BPX_SDK_RUNTIME_LIBRARY_PATH}"
+        IMPORTED_IMPLIB "${BPX_SDK_IMPORT_LIBRARY_PATH}"
+    )
+else()
+    if(NOT BPX_SDK_IMPORT_LIBRARY_PATH)
+        message(FATAL_ERROR "No BPX SDK shared library found for architecture: ${CMAKE_SYSTEM_PROCESSOR}")
+    endif()
+    set_target_properties(bpx_sdk PROPERTIES
+        IMPORTED_LOCATION "${BPX_SDK_IMPORT_LIBRARY_PATH}"
+    )
+endif()
 
 function(add_bpx_sdk_example target source)
     add_executable(${target}
@@ -55,6 +84,14 @@ function(add_bpx_sdk_example target source)
     set_target_properties(${target} PROPERTIES
         BUILD_RPATH "${CMAKE_CURRENT_LIST_DIR}/lib"
     )
+    if(WIN32)
+        add_custom_command(TARGET ${target} POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "${BPX_SDK_RUNTIME_LIBRARY_PATH}"
+                "$<TARGET_FILE_DIR:${target}>"
+            VERBATIM
+        )
+    endif()
 endfunction()
 
 add_bpx_sdk_example(request_robot_state_example example/request_robot_state_example.cpp)

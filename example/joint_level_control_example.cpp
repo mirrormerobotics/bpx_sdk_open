@@ -1,5 +1,6 @@
 #include "joint_level_control.h"
 #include "bpx_sdk_version.h"
+#include "example_options.h"
 
 #include <array>
 #include <chrono>
@@ -161,9 +162,12 @@ bool runMoveStage(bpx_sdk::JointLevelControl& joint_level_control,
 }  // namespace
 
 int main(int argc, char** argv) {
-    if (argc != 1) {
-        std::cerr << argv[0] << " does not accept command line arguments." << std::endl;
+    bpx_sdk::example::Options options;
+    if (!bpx_sdk::example::parseOptions(argc, argv, true, &options)) {
         return 1;
+    }
+    if (options.help_requested) {
+        return 0;
     }
 
     printVersion();
@@ -171,16 +175,24 @@ int main(int argc, char** argv) {
     bpx_sdk::JointLevelControl joint_level_control;
 
     // Set the robot address.
-    joint_level_control.setRobotIp(bpx_sdk::DEFAULT_SERVER_IP);
+    joint_level_control.setRobotIp(options.robot_ip.c_str());
 
     // Set the local state receiving port.
-    joint_level_control.setRobotStateUploadPort(bpx_sdk::DEFAULT_CLIENT_ROBOT_STATE_UDP_PORT);
+    joint_level_control.setRobotStateUploadPort(options.robot_state_port);
+    joint_level_control.setJointStateUploadPort(options.joint_state_port);
 
     // Use 0 to let the system choose the local connection port automatically.
-    joint_level_control.setTcpLocalPort(0);
+    joint_level_control.setTcpLocalPort(options.tcp_local_port);
 
     // Set the requested robot state upload rate.
-    joint_level_control.setRobotStateUploadRate(100);
+    joint_level_control.setRobotStateUploadRate(options.state_rate_hz);
+
+    std::cout << "robot_ip=" << options.robot_ip
+              << " state_port=" << options.robot_state_port
+              << " joint_state_port=" << options.joint_state_port
+              << " tcp_local_port=" << options.tcp_local_port
+              << " state_rate=" << options.state_rate_hz
+              << std::endl;
 
     if (!joint_level_control.connect()) {
         std::cerr << "failed to connect joint level control" << std::endl;
