@@ -28,6 +28,10 @@ if(WIN32)
         "${CMAKE_CURRENT_LIST_DIR}/lib/bpx_sdk_${BPX_SDK_ARCH}.lib"
         "${CMAKE_CURRENT_LIST_DIR}/bin/bpx_sdk_${BPX_SDK_ARCH}.lib"
     )
+elseif(APPLE)
+    set(BPX_SDK_LIBRARY_CANDIDATES
+        "${CMAKE_CURRENT_LIST_DIR}/lib/libbpx_sdk_${BPX_SDK_ARCH}.dylib"
+    )
 else()
     set(BPX_SDK_LIBRARY_CANDIDATES
         "${CMAKE_CURRENT_LIST_DIR}/lib/libbpx_sdk_${BPX_SDK_ARCH}.so"

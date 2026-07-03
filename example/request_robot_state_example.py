@@ -37,6 +37,9 @@ def main():
         while True:
             joint_pos = robot_state.getJointPosition()
             rpy = robot_state.getImuRpy()
+            vel_body = robot_state.getCurrentVelocityBody()
+            leg_odom = robot_state.getLegOdom()
+            max_vel = robot_state.getMaxVelocity()
             battery = robot_state.getBatteryLevel()
 
             print("robot state:")
@@ -44,6 +47,21 @@ def main():
                 print(f"  joint_pos[0]={joint_pos[0]:.3f}")
             if rpy is not None:
                 print(f"  rpy=({rpy[0]:.3f}, {rpy[1]:.3f}, {rpy[2]:.3f})")
+            if vel_body is not None:
+                print(
+                    f"  vel_body=({vel_body[0]:.3f}, "
+                    f"{vel_body[1]:.3f}, {vel_body[2]:.3f})"
+                )
+            if leg_odom is not None:
+                print(
+                    f"  leg_odom=({leg_odom[0]:.3f}, "
+                    f"{leg_odom[1]:.3f}, {leg_odom[2]:.3f})"
+                )
+            if max_vel is not None:
+                print(
+                    f"  max_vel=({max_vel[0]:.3f}, "
+                    f"{max_vel[1]:.3f}, {max_vel[2]:.3f})"
+                )
             if battery is not None:
                 print(f"  battery_level={battery}%")
 

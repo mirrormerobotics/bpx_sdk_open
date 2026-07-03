@@ -1,7 +1,7 @@
 #pragma once
 
 #define BPX_SDK_PROJECT_NAME "bpx_sdk"
-#define BPX_SDK_PROJECT_VERSION "1.0.3"
+#define BPX_SDK_PROJECT_VERSION "1.0.4"
 #define BPX_SDK_VERSION_MAJOR 1
 #define BPX_SDK_VERSION_MINOR 0
-#define BPX_SDK_VERSION_PATCH 3
+#define BPX_SDK_VERSION_PATCH 4

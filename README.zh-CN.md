@@ -4,7 +4,7 @@
 
 `bpx_sdk_open` 提供一个轻量级 C++ SDK，用于读取 BPX 机器人状态，并发送运动级或关节级控制指令。
 
-当前版本：`1.0.5`
+当前版本：`1.0.6`
 
 SDK 提供三种使用模式：
 
@@ -31,6 +31,7 @@ bpx_sdk_open/
   lib/
     libbpx_sdk_x86_64.so
     libbpx_sdk_aarch64.so
+    libbpx_sdk_aarch64.dylib
     bpx_sdk_x86_64.lib
   bin/
     bpx_sdk_x86_64.dll
@@ -101,7 +102,7 @@ SDK 提供类型安全的运动状态和步态枚举，可用于读取当前/上
 速度指令使用 `[x, y, yaw]`，其中 `x`、`y` 为机身坐标系线速度，单位 m/s；`yaw` 为偏航角速度，单位 rad/s。以下数值为控制器内部对各步态速度指令的限幅：
 
 | 步态             | 速度限制 `[x, y, yaw]` |
-| -------------- | -------------------- |
+| -------------- | ---------------------------------------------------- |
 | `Walk`         | `[1.5, 0.5, 2.0]`    |
 | `Bipedal`      | `[0.8, 0.5, 1.5]`    |
 | `Flip`         | `[0.0, 0.0, 0.0]`    |
@@ -292,6 +293,7 @@ if (!joint.connect()) {
 环境要求：
 
 - Linux 下需要 Ubuntu 22.04 及以上版本。
+- macOS 下使用当前随包提供的 aarch64 SDK 二进制。
 - Windows 下使用当前随包提供的 x86_64 SDK 二进制。
 - Python 3.8 及以上版本（使用 Python 封装时需要）。Windows 下需要 64 位 Python。
 
@@ -327,6 +329,52 @@ python3 -m pip install .
 
 Windows Python 封装只支持 x86_64。构建时会使用 `lib/bpx_sdk_x86_64.lib` 链接原生扩展，并将
 `bin/bpx_sdk_x86_64.dll` 安装到 Python 包内。
+
+Linux 下 Python 构建会根据当前机器架构选择 `lib/libbpx_sdk_<arch>.so`。macOS 下 Python 构建会选择
+`lib/libbpx_sdk_<arch>.dylib`；当前仓库随包提供的是面向 Apple Silicon 的
+`lib/libbpx_sdk_aarch64.dylib`。如需覆盖自动架构检测，可在构建时设置
+`BPX_SDK_ARCH=x86_64` 或 `BPX_SDK_ARCH=aarch64`。
+
+使用 `python3 -m pip install .` 从源码安装时，会在本机编译 Python 原生扩展，因此构建机器需要 C++17 编译器和 Python 开发头文件。Windows 源码构建需要安装 Microsoft C++ Build Tools。使用预构建 wheel 安装的用户不需要安装这些编译工具。
+
+#### 构建 Wheel
+
+为当前系统和当前 Python 解释器构建一个 wheel：
+
+```bash
+python3 scripts/build_wheels.py --out-dir wheelhouse
+```
+
+使用 `cibuildwheel` 为当前系统构建配置范围内的全部 CPython wheel：
+
+```bash
+python3 scripts/build_wheels.py --cibuildwheel --out-dir wheelhouse
+```
+
+运行 `cibuildwheel` 时，宿主 Python 解释器需要为 3.11 或更新版本。
+
+在本地 macOS 上，`cibuildwheel` 只会使用 python.org 安装包提供的 CPython
+Framework。构建脚本会自动跳过本机未安装的 CPython 版本；GitHub Actions 中仍会构建完整配置矩阵。
+
+`.github/workflows/build-wheels.yml` 中的 GitHub Actions 工作流会构建 Windows AMD64、Linux x86_64/aarch64 和 macOS arm64 的 wheel 产物。可以在 Actions 页面手动触发，也可以推送 `v*` 标签触发。生成的 wheel 会作为工作流产物上传，安装方式如下：
+
+```bash
+pip3 install --no-index --find-links wheelhouse bpx-sdk-open
+```
+
+如果 pip 版本过旧，无法识别较新的 wheel 平台标签，安装时可能出现下面的报错：
+
+```text
+Looking in links: wheelhouse
+ERROR: Could not find a version that satisfies the requirement bpx-sdk-open (from versions: none)
+ERROR: No matching distribution found for bpx-sdk-open
+```
+
+遇到这个报错时，先升级 pip，然后重新执行安装命令：
+
+```bash
+pip3 install --upgrade pip
+```
 
 安装完成后，可以用下面的命令验证导入：
 
@@ -366,8 +414,6 @@ joint.setJointCommand(kp, zeros, kd, zeros, zeros)
 `example/request_robot_state_example.py`、
 `example/motion_level_control_example.py`、
 `example/joint_level_control_example.py`
-
-
 
 ## 运行说明
 

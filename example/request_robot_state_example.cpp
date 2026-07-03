@@ -76,6 +76,13 @@ int main(int argc, char** argv) {
                       << std::endl;
         }
 
+        float leg_odom[3] = {};
+        if (robot_state.getLegOdom(leg_odom)) {
+            std::cout << "  leg_odom=(" << leg_odom[0] << ", "
+                      << leg_odom[1] << ", " << leg_odom[2] << ")"
+                      << std::endl;
+        }
+
         uint8_t current_state = 0;
         uint8_t current_gait = 0;
         uint8_t sub_gait = 0;
@@ -85,6 +92,13 @@ int main(int argc, char** argv) {
             std::cout << "  motion_state=" << static_cast<uint32_t>(current_state)
                       << " gait=" << static_cast<uint32_t>(current_gait)
                       << " sub_gait=" << static_cast<int32_t>(static_cast<int8_t>(sub_gait))
+                      << std::endl;
+        }
+
+        float max_vel[3] = {};
+        if (robot_state.getMaxVelocity(max_vel)) {
+            std::cout << "  max_vel=(" << max_vel[0] << ", "
+                      << max_vel[1] << ", " << max_vel[2] << ")"
                       << std::endl;
         }
 

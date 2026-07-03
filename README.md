@@ -4,7 +4,7 @@
 
 `bpx_sdk_open` provides a lightweight C++ SDK for reading BPX robot state and sending motion-level or joint-level control commands.
 
-Current version: `1.0.5`
+Current version: `1.0.6`
 
 The SDK offers three usage modes:
 
@@ -31,6 +31,7 @@ bpx_sdk_open/
   lib/
     libbpx_sdk_x86_64.so
     libbpx_sdk_aarch64.so
+    libbpx_sdk_aarch64.dylib
     bpx_sdk_x86_64.lib
   bin/
     bpx_sdk_x86_64.dll
@@ -293,6 +294,7 @@ High-rate state APIs:
 Requirements:
 
 - Ubuntu 22.04 or later on Linux.
+- macOS aarch64 when using the macOS SDK binary.
 - Windows x86_64 when using the Windows SDK binaries.
 - Python 3.8 or later when using the Python bindings. Windows requires 64-bit Python.
 
@@ -327,6 +329,52 @@ python3 -m pip install .
 ```
 
 The Windows Python bindings support x86_64 only. During the build, `lib/bpx_sdk_x86_64.lib` is used to link the native extension, and `bin/bpx_sdk_x86_64.dll` is installed into the Python package.
+
+On Linux, the Python build selects `lib/libbpx_sdk_<arch>.so` for the current machine architecture. On macOS, the Python build selects `lib/libbpx_sdk_<arch>.dylib`; the repository currently ships `lib/libbpx_sdk_aarch64.dylib` for Apple Silicon. You can override architecture detection with `BPX_SDK_ARCH=x86_64` or `BPX_SDK_ARCH=aarch64` when building.
+
+Installing from source with `python3 -m pip install .` compiles the native Python extension locally, so the build machine must have a C++17 compiler and Python development headers. Windows source builds require Microsoft C++ Build Tools. Users who install a prebuilt wheel do not need the compiler toolchain.
+
+#### Building Wheels
+
+Build a wheel for the current OS and Python interpreter:
+
+```bash
+python3 scripts/build_wheels.py --out-dir wheelhouse
+```
+
+Build release wheels with `cibuildwheel` for all configured CPython versions on the current OS:
+
+```bash
+python3 scripts/build_wheels.py --cibuildwheel --out-dir wheelhouse
+```
+
+Running `cibuildwheel` requires Python 3.11 or newer as the host interpreter.
+
+On local macOS machines, `cibuildwheel` only uses python.org CPython framework installs.
+The build script skips configured CPython versions that are not installed locally. In
+GitHub Actions, the full configured CPython matrix is built.
+
+The GitHub Actions workflow in `.github/workflows/build-wheels.yml` builds wheel artifacts for Windows AMD64, Linux x86_64/aarch64, and macOS arm64. Run it manually from the Actions tab or push a `v*` tag. The generated wheels are uploaded as workflow artifacts and can be installed with:
+
+To install from a local wheelhouse:
+
+```bash
+pip3 install --no-index --find-links wheelhouse bpx-sdk-open
+```
+
+If pip is too old to recognize newer wheel platform tags, the install may fail with:
+
+```text
+Looking in links: wheelhouse
+ERROR: Could not find a version that satisfies the requirement bpx-sdk-open (from versions: none)
+ERROR: No matching distribution found for bpx-sdk-open
+```
+
+Upgrade pip and retry:
+
+```bash
+pip3 install --upgrade pip
+```
 
 After installation, verify the package import with:
 

@@ -1,5 +1,5 @@
-
 build
+dist/
 
 .vscode/
 
@@ -10,5 +10,12 @@ __pycache__/
 
 *.egg-info/
 
+.cibuildwheel-cache/
+
 bpx_sdk/_bpx_sdk*.so
 bpx_sdk/lib/
+
+.venv/
+.venv-*/
+.python-version
+uv.lock
