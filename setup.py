@@ -1,6 +1,7 @@
 import os
 import platform
 import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -10,6 +11,7 @@ from setuptools.command.build_py import build_py
 
 
 ROOT = Path(__file__).resolve().parent
+DEFAULT_MACOS_DEPLOYMENT_TARGET = "11.0"
 
 
 def sdk_arch():
@@ -21,6 +23,29 @@ def sdk_arch():
     return arch
 
 
+def macos_version_tuple(version):
+    parts = []
+    for part in version.split("."):
+        try:
+            parts.append(int(part))
+        except ValueError:
+            break
+    return tuple(parts)
+
+
+def macos_dylib_minos(dylib):
+    try:
+        output = subprocess.check_output(["otool", "-l", str(dylib)], text=True)
+    except (OSError, subprocess.CalledProcessError):
+        return None
+
+    for line in output.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("minos "):
+            return stripped.split()[1]
+    return None
+
+
 ARCH = sdk_arch()
 IS_WINDOWS = sys.platform == "win32"
 IS_MACOS = sys.platform == "darwin"
@@ -30,10 +55,14 @@ if IS_WINDOWS and ARCH != "x86_64":
 
 if IS_MACOS:
     mac_arch = "arm64" if ARCH == "aarch64" else "x86_64"
-    mac_major = platform.mac_ver()[0].split(".", 1)[0] or "11"
+    macos_deployment_target = os.environ.get(
+        "MACOSX_DEPLOYMENT_TARGET", DEFAULT_MACOS_DEPLOYMENT_TARGET
+    )
     os.environ["ARCHFLAGS"] = f"-arch {mac_arch}"
-    os.environ["MACOSX_DEPLOYMENT_TARGET"] = f"{mac_major}.0"
-    os.environ["_PYTHON_HOST_PLATFORM"] = f"macosx-{mac_major}.0-{mac_arch}"
+    os.environ["MACOSX_DEPLOYMENT_TARGET"] = macos_deployment_target
+    os.environ["_PYTHON_HOST_PLATFORM"] = (
+        f"macosx-{macos_deployment_target}-{mac_arch}"
+    )
 
 if IS_WINDOWS:
     SDK_RUNTIME_LIBRARY = ROOT / "bin" / f"bpx_sdk_{ARCH}.dll"
@@ -47,6 +76,15 @@ elif IS_MACOS:
     SDK_IMPORT_LIBRARY = SDK_RUNTIME_LIBRARY
     if not SDK_RUNTIME_LIBRARY.exists():
         raise RuntimeError(f"No BPX SDK dynamic library found for architecture: {ARCH}")
+    sdk_minos = macos_dylib_minos(SDK_RUNTIME_LIBRARY)
+    if sdk_minos and macos_version_tuple(sdk_minos) > macos_version_tuple(
+        os.environ["MACOSX_DEPLOYMENT_TARGET"]
+    ):
+        raise RuntimeError(
+            f"{SDK_RUNTIME_LIBRARY} requires macOS {sdk_minos}, which is newer "
+            f"than MACOSX_DEPLOYMENT_TARGET={os.environ['MACOSX_DEPLOYMENT_TARGET']}. "
+            "Rebuild or replace the SDK dylib with the same or lower deployment target."
+        )
 else:
     SDK_RUNTIME_LIBRARY = ROOT / "lib" / f"libbpx_sdk_{ARCH}.so"
     SDK_IMPORT_LIBRARY = SDK_RUNTIME_LIBRARY

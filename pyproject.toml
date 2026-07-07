@@ -17,4 +17,4 @@ archs = ["AMD64"]
 
 [tool.cibuildwheel.macos]
 archs = ["arm64"]
-environment = { BPX_SDK_ARCH = "aarch64", MACOSX_DEPLOYMENT_TARGET = "26.0" }
+environment = { BPX_SDK_ARCH = "aarch64", MACOSX_DEPLOYMENT_TARGET = "11.0" }
