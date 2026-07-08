@@ -16,6 +16,7 @@
 namespace {
 
 using bpx_sdk::JointLevelControl;
+using bpx_sdk::LegOdom;
 using bpx_sdk::MotionLevelControl;
 using bpx_sdk::RequestRobotState;
 
@@ -130,6 +131,31 @@ PyObject* float_array_to_list(const float* values, size_t size) {
     return list;
 }
 
+int dict_set_float_array(PyObject* dict, const char* name, const float* values, size_t size) {
+    PyObject* list = float_array_to_list(values, size);
+    if (!list) {
+        return -1;
+    }
+    const int result = PyDict_SetItemString(dict, name, list);
+    Py_DECREF(list);
+    return result;
+}
+
+PyObject* leg_odom_to_dict(const LegOdom& leg_odom) {
+    PyObject* dict = PyDict_New();
+    if (!dict) {
+        return nullptr;
+    }
+    if (dict_set_float_array(dict, "velocity_body", leg_odom.velocity_body, 3) < 0 ||
+        dict_set_float_array(dict, "position", leg_odom.position, 3) < 0 ||
+        dict_set_float_array(dict, "orientation", leg_odom.orientation, 4) < 0 ||
+        dict_set_float_array(dict, "angular_velocity", leg_odom.angular_velocity, 3) < 0) {
+        Py_DECREF(dict);
+        return nullptr;
+    }
+    return dict;
+}
+
 PyObject* state_float_array(PyObject* self,
                             bool (RequestRobotState::*getter)(float*) const,
                             size_t size) {
@@ -192,6 +218,46 @@ PyObject* state_float(PyObject* self, bool (RequestRobotState::*getter)(float*) 
         Py_RETURN_NONE;
     }
     return PyFloat_FromDouble(value);
+}
+
+PyObject* state_get_robot_version(PyObject* self, PyObject*) {
+    RequestRobotState* cpp = state_cpp(self);
+    if (!cpp) {
+        return nullptr;
+    }
+    uint16_t major = 0;
+    uint16_t minor = 0;
+    uint16_t patch = 0;
+    uint32_t commit = 0;
+    uint32_t build_date = 0;
+    uint32_t build_time = 0;
+    if (!cpp->getRobotVersion(&major, &minor, &patch, &commit, &build_date, &build_time)) {
+        Py_RETURN_NONE;
+    }
+
+    PyObject* tuple = PyTuple_New(6);
+    if (!tuple) {
+        return nullptr;
+    }
+    PyObject* values[] = {
+        PyLong_FromUnsignedLong(major),
+        PyLong_FromUnsignedLong(minor),
+        PyLong_FromUnsignedLong(patch),
+        PyLong_FromUnsignedLong(commit),
+        PyLong_FromUnsignedLong(build_date),
+        PyLong_FromUnsignedLong(build_time),
+    };
+    for (Py_ssize_t i = 0; i < 6; ++i) {
+        if (!values[i]) {
+            for (Py_ssize_t j = 0; j < i; ++j) {
+                Py_DECREF(values[j]);
+            }
+            Py_DECREF(tuple);
+            return nullptr;
+        }
+        PyTuple_SET_ITEM(tuple, i, values[i]);
+    }
+    return tuple;
 }
 
 PyObject* request_new(PyTypeObject* type, PyObject*, PyObject*) {
@@ -362,11 +428,21 @@ STATE_FLOAT_ARRAY_METHOD(state_get_imu_rpy, getImuRpy, 3)
 STATE_FLOAT_ARRAY_METHOD(state_get_imu_quat, getImuQuat, 4)
 STATE_FLOAT_ARRAY_METHOD(state_get_imu_acc, getImuAcc, 3)
 STATE_FLOAT_ARRAY_METHOD(state_get_imu_omega, getImuOmega, 3)
-STATE_FLOAT_ARRAY_METHOD(state_get_current_velocity_body, getCurrentVelocityBody, 3)
-STATE_FLOAT_ARRAY_METHOD(state_get_leg_odom, getLegOdom, 3)
 STATE_FLOAT_ARRAY_METHOD(state_get_motor_temperature, getMotorTemperature, 12)
 STATE_FLOAT_ARRAY_METHOD(state_get_driver_temperature, getDriverTemperature, 12)
 STATE_FLOAT_ARRAY_METHOD(state_get_max_velocity, getMaxVelocity, 3)
+
+PyObject* state_get_leg_odom(PyObject* self, PyObject*) {
+    RequestRobotState* cpp = state_cpp(self);
+    if (!cpp) {
+        return nullptr;
+    }
+    LegOdom leg_odom{};
+    if (!cpp->getLegOdom(&leg_odom)) {
+        Py_RETURN_NONE;
+    }
+    return leg_odom_to_dict(leg_odom);
+}
 
 #define STATE_U8_METHOD(py_name, cpp_name)                           \
     PyObject* py_name(PyObject* self, PyObject*) {                   \
@@ -619,6 +695,7 @@ PyMethodDef StateMethods[] = {
     METHOD("setRobotStateUploadRate", state_set_robot_state_upload_rate, METH_VARARGS, nullptr),
     METHOD("setTcpLocalPort", state_set_tcp_local_port, METH_VARARGS, nullptr),
     METHOD("setSessionId", state_set_session_id, METH_VARARGS, nullptr),
+    METHOD("getRobotVersion", state_get_robot_version, METH_NOARGS, nullptr),
     METHOD("getJointPosition", state_get_joint_position, METH_NOARGS, nullptr),
     METHOD("getJointVelocity", state_get_joint_velocity, METH_NOARGS, nullptr),
     METHOD("getJointTorque", state_get_joint_torque, METH_NOARGS, nullptr),
@@ -626,7 +703,6 @@ PyMethodDef StateMethods[] = {
     METHOD("getImuQuat", state_get_imu_quat, METH_NOARGS, nullptr),
     METHOD("getImuAcc", state_get_imu_acc, METH_NOARGS, nullptr),
     METHOD("getImuOmega", state_get_imu_omega, METH_NOARGS, nullptr),
-    METHOD("getCurrentVelocityBody", state_get_current_velocity_body, METH_NOARGS, nullptr),
     METHOD("getLegOdom", state_get_leg_odom, METH_NOARGS, nullptr),
     METHOD("getMotorTemperature", state_get_motor_temperature, METH_NOARGS, nullptr),
     METHOD("getDriverTemperature", state_get_driver_temperature, METH_NOARGS, nullptr),
@@ -656,6 +732,7 @@ PyMethodDef MotionMethods[] = {
     METHOD("setRobotStateUploadRate", state_set_robot_state_upload_rate, METH_VARARGS, nullptr),
     METHOD("setTcpLocalPort", state_set_tcp_local_port, METH_VARARGS, nullptr),
     METHOD("setSessionId", state_set_session_id, METH_VARARGS, nullptr),
+    METHOD("getRobotVersion", state_get_robot_version, METH_NOARGS, nullptr),
     METHOD("getJointPosition", state_get_joint_position, METH_NOARGS, nullptr),
     METHOD("getJointVelocity", state_get_joint_velocity, METH_NOARGS, nullptr),
     METHOD("getJointTorque", state_get_joint_torque, METH_NOARGS, nullptr),
@@ -663,7 +740,6 @@ PyMethodDef MotionMethods[] = {
     METHOD("getImuQuat", state_get_imu_quat, METH_NOARGS, nullptr),
     METHOD("getImuAcc", state_get_imu_acc, METH_NOARGS, nullptr),
     METHOD("getImuOmega", state_get_imu_omega, METH_NOARGS, nullptr),
-    METHOD("getCurrentVelocityBody", state_get_current_velocity_body, METH_NOARGS, nullptr),
     METHOD("getLegOdom", state_get_leg_odom, METH_NOARGS, nullptr),
     METHOD("getMotorTemperature", state_get_motor_temperature, METH_NOARGS, nullptr),
     METHOD("getDriverTemperature", state_get_driver_temperature, METH_NOARGS, nullptr),
@@ -710,6 +786,7 @@ PyMethodDef JointMethods[] = {
     METHOD("setRobotStateUploadRate", state_set_robot_state_upload_rate, METH_VARARGS, nullptr),
     METHOD("setTcpLocalPort", state_set_tcp_local_port, METH_VARARGS, nullptr),
     METHOD("setSessionId", state_set_session_id, METH_VARARGS, nullptr),
+    METHOD("getRobotVersion", state_get_robot_version, METH_NOARGS, nullptr),
     METHOD("getJointPosition", state_get_joint_position, METH_NOARGS, nullptr),
     METHOD("getJointVelocity", state_get_joint_velocity, METH_NOARGS, nullptr),
     METHOD("getJointTorque", state_get_joint_torque, METH_NOARGS, nullptr),
@@ -717,7 +794,6 @@ PyMethodDef JointMethods[] = {
     METHOD("getImuQuat", state_get_imu_quat, METH_NOARGS, nullptr),
     METHOD("getImuAcc", state_get_imu_acc, METH_NOARGS, nullptr),
     METHOD("getImuOmega", state_get_imu_omega, METH_NOARGS, nullptr),
-    METHOD("getCurrentVelocityBody", state_get_current_velocity_body, METH_NOARGS, nullptr),
     METHOD("getLegOdom", state_get_leg_odom, METH_NOARGS, nullptr),
     METHOD("getMotorTemperature", state_get_motor_temperature, METH_NOARGS, nullptr),
     METHOD("getDriverTemperature", state_get_driver_temperature, METH_NOARGS, nullptr),

@@ -3,6 +3,7 @@ import platform
 import sys
 from pathlib import Path
 from enum import IntEnum
+from typing import List, TypedDict
 
 _package_dir = Path(__file__).resolve().parent
 _dll_directory_handle = None
@@ -72,6 +73,13 @@ class MotionGait(IntEnum):
     Running = _native.MOTION_GAIT_RUNNING
 
 
+class LegOdom(TypedDict):
+    velocity_body: List[float]
+    position: List[float]
+    orientation: List[float]
+    angular_velocity: List[float]
+
+
 __all__ = [
     "__version__",
     "DEFAULT_CLIENT_JOINT_STATE_UDP_PORT",
@@ -79,6 +87,7 @@ __all__ = [
     "DEFAULT_SERVER_IP",
     "JOINT_COUNT",
     "JointLevelControl",
+    "LegOdom",
     "MotionGait",
     "MotionLevelControl",
     "MotionState",

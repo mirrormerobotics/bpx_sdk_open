@@ -4,7 +4,9 @@
 
 `bpx_sdk_open` provides a lightweight C++ SDK for reading BPX robot state and sending motion-level or joint-level control commands.
 
-Current version: `1.0.6`
+SDK version: `1.0.6`
+
+Documentation updated: `2026-07-07`
 
 The SDK offers three usage modes:
 
@@ -98,6 +100,15 @@ Gait `bpx_sdk::MotionGait`:
 | `PoseTracking` | `7`       |
 | `Running`      | `8`       |
 
+Leg odometry `bpx_sdk::LegOdom`:
+
+| Field              | Size | Description                                   |
+| ------------------ | ---- | --------------------------------------------- |
+| `velocity_body`    | `3`  | Body-frame linear velocity in m/s.            |
+| `position`         | `3`  | World-frame position in m.                    |
+| `orientation`      | `4`  | World-frame orientation quaternion, x/y/z/w.  |
+| `angular_velocity` | `3`  | Body-frame angular velocity in rad/s.         |
+
 ### Gait Velocity Limits
 
 Velocity commands use `[x, y, yaw]`, where `x` and `y` are body-frame linear velocities in m/s and `yaw` is yaw rate in rad/s. The following values are the controller-side command limits for each gait:
@@ -148,8 +159,7 @@ Main state APIs:
 | `getImuQuat(float[4])`                | Body orientation quaternion.      |
 | `getImuAcc(float[3])`                 | IMU linear acceleration.          |
 | `getImuOmega(float[3])`               | IMU angular velocity.             |
-| `getCurrentVelocityBody(float[3])`    | Current body-frame velocity.      |
-| `getLegOdom(float[3])`                | Leg odometry data.                |
+| `getLegOdom(LegOdom*)`                | Leg odometry data.                |
 | `getCurrentMotionState(uint8_t*)`     | Current motion state.             |
 | `getCurrentGait(uint8_t*)`            | Current gait.                     |
 | `getLastMotionState(uint8_t*)`        | Previous motion state.            |
@@ -170,7 +180,8 @@ Main state APIs:
 | `getMotionStateTimestamp(uint32_t*)`  | Latest motion state timestamp.    |
 | `getBatteryTimestamp(uint32_t*)`      | Latest battery state timestamp.   |
 
-The SDK also provides optional helper APIs that return arrays or scalar values, such as `getJointPositionArray()`, `getImuRpyArray()`,
+The SDK also provides optional helper APIs that return arrays, structs, or scalar values, such as `getJointPositionArray()`, `getImuRpyArray()`,
+`getLegOdomValue()`,
 `getSubGaitValue()`, and `getBatteryLevelValue()`. These return `std::optional` and let callers check read success more concisely. Motion state and gait also provide
 `getCurrentMotionStateEnum()`, `getCurrentGaitEnum()`, `getLastMotionStateEnum()`, and `getLastGaitEnum()`,
 which return `MotionState` or `MotionGait` directly.
@@ -345,7 +356,7 @@ python3 scripts/build_wheels.py --out-dir wheelhouse
 Build release wheels with `cibuildwheel` for all configured CPython versions on the current OS:
 
 ```bash
-python3 scripts/build_wheels.py --cibuildwheel --out-dir wheelhouse
+python3.11 scripts/build_wheels.py --cibuildwheel --out-dir wheelhouse
 ```
 
 Running `cibuildwheel` requires Python 3.11 or newer as the host interpreter.
@@ -400,7 +411,7 @@ if robot_state.connect():
 ```
 
 Python method names match the C++ SDK. Read APIs return a
-`list`, `int`, or `float` on success, and `None` when no valid data has been received yet. Joint control APIs accept Python sequences with exactly 12 numbers:
+`list`, `dict`, `int`, or `float` on success, and `None` when no valid data has been received yet. `getLegOdom()` returns a dict with `velocity_body`, `position`, `orientation`, and `angular_velocity` lists. Joint control APIs accept Python sequences with exactly 12 numbers:
 
 ```python
 joint = bpx_sdk.JointLevelControl()

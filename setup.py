@@ -1,5 +1,6 @@
 import os
 import platform
+import re
 import shutil
 import subprocess
 import sys
@@ -12,6 +13,23 @@ from setuptools.command.build_py import build_py
 
 ROOT = Path(__file__).resolve().parent
 DEFAULT_MACOS_DEPLOYMENT_TARGET = "11.0"
+
+
+def read_sdk_version():
+    version_header = ROOT / "include" / "bpx_sdk_version.h"
+    pattern = re.compile(r'^\s*#\s*define\s+BPX_SDK_PROJECT_VERSION\s+"([^"]+)"\s*$')
+
+    try:
+        lines = version_header.read_text(encoding="utf-8").splitlines()
+    except OSError as exc:
+        raise RuntimeError(f"Failed to read SDK version from {version_header}") from exc
+
+    for line in lines:
+        match = pattern.match(line)
+        if match:
+            return match.group(1)
+
+    raise RuntimeError(f"BPX_SDK_PROJECT_VERSION not found in {version_header}")
 
 
 def sdk_arch():
@@ -133,7 +151,7 @@ class BuildExtWithSdkLibrary(build_ext):
 
 setup(
     name="bpx-sdk-open",
-    version="1.0.4",
+    version=read_sdk_version(),
     description="Python bindings for BPX SDK Open",
     packages=["bpx_sdk"],
     package_data={"bpx_sdk": ["lib/*.so", "lib/*.dylib", "lib/*.dll", "py.typed", "__init__.pyi"]},

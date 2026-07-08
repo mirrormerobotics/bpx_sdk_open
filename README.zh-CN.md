@@ -4,7 +4,9 @@
 
 `bpx_sdk_open` 提供一个轻量级 C++ SDK，用于读取 BPX 机器人状态，并发送运动级或关节级控制指令。
 
-当前版本：`1.0.6`
+SDK 版本：`1.0.6`
+
+文档更新日期：`2026-07-07`
 
 SDK 提供三种使用模式：
 
@@ -97,6 +99,15 @@ SDK 提供类型安全的运动状态和步态枚举，可用于读取当前/上
 | `PoseTracking` | `7` |
 | `Running`      | `8` |
 
+腿部里程计 `bpx_sdk::LegOdom`：
+
+| 字段                 | 长度  | 说明                         |
+| ------------------ | --- | -------------------------- |
+| `velocity_body`    | `3` | 机身坐标系线速度，单位 m/s。          |
+| `position`         | `3` | 世界坐标系位置，单位 m。             |
+| `orientation`      | `4` | 世界坐标系姿态四元数，顺序为 x/y/z/w。   |
+| `angular_velocity` | `3` | 机身坐标系角速度，单位 rad/s。        |
+
 ### 步态速度限制
 
 速度指令使用 `[x, y, yaw]`，其中 `x`、`y` 为机身坐标系线速度，单位 m/s；`yaw` 为偏航角速度，单位 rad/s。以下数值为控制器内部对各步态速度指令的限幅：
@@ -147,8 +158,7 @@ if (!robot_state.connect()) {
 | `getImuQuat(float[4])`                | 机身四元数。          |
 | `getImuAcc(float[3])`                 | IMU 线加速度。       |
 | `getImuOmega(float[3])`               | IMU 角速度。        |
-| `getCurrentVelocityBody(float[3])`    | 当前机身坐标系速度。      |
-| `getLegOdom(float[3])`                | 腿部里程计数据。        |
+| `getLegOdom(LegOdom*)`                | 腿部里程计数据。        |
 | `getCurrentMotionState(uint8_t*)`     | 当前运动状态。         |
 | `getCurrentGait(uint8_t*)`            | 当前步态。           |
 | `getLastMotionState(uint8_t*)`        | 上一次运动状态。        |
@@ -169,7 +179,8 @@ if (!robot_state.connect()) {
 | `getMotionStateTimestamp(uint32_t*)`  | 最新运动状态时间戳。      |
 | `getBatteryTimestamp(uint32_t*)`      | 最新电池状态时间戳。      |
 
-SDK 也提供返回数组或数值的可选辅助接口，例如 `getJointPositionArray()`、`getImuRpyArray()`、
+SDK 也提供返回数组、结构体或数值的可选辅助接口，例如 `getJointPositionArray()`、`getImuRpyArray()`、
+`getLegOdomValue()`、
 `getSubGaitValue()` 和 `getBatteryLevelValue()`。这些接口返回 `std::optional`，适合调用方用更紧凑的方式判断读取是否成功。运动状态和步态也提供
 `getCurrentMotionStateEnum()`、`getCurrentGaitEnum()`、`getLastMotionStateEnum()` 和 `getLastGaitEnum()`，
 可直接返回 `MotionState` 或 `MotionGait`。
@@ -348,7 +359,7 @@ python3 scripts/build_wheels.py --out-dir wheelhouse
 使用 `cibuildwheel` 为当前系统构建配置范围内的全部 CPython wheel：
 
 ```bash
-python3 scripts/build_wheels.py --cibuildwheel --out-dir wheelhouse
+python3.11 scripts/build_wheels.py --cibuildwheel --out-dir wheelhouse
 ```
 
 运行 `cibuildwheel` 时，宿主 Python 解释器需要为 3.11 或更新版本。
@@ -400,7 +411,7 @@ if robot_state.connect():
 ```
 
 Python 方法名与 C++ SDK 保持一致。读取类接口成功时返回
-`list`、`int` 或 `float`，暂未收到有效数据时返回 `None`。关节控制接口接收长度为 12 的 Python 序列，例如：
+`list`、`dict`、`int` 或 `float`，暂未收到有效数据时返回 `None`。`getLegOdom()` 返回包含 `velocity_body`、`position`、`orientation`、`angular_velocity` 四个列表字段的 dict。关节控制接口接收长度为 12 的 Python 序列，例如：
 
 ```python
 joint = bpx_sdk.JointLevelControl()

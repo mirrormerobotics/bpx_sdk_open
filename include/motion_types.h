@@ -59,6 +59,13 @@ constexpr int jointIndex(JointIndex joint) {
     return static_cast<int>(joint);
 }
 
+struct LegOdom {
+    float velocity_body[3] = {0.0f, 0.0f, 0.0f};       // Body-frame linear velocity, m/s.
+    float position[3] = {0.0f, 0.0f, 0.0f};            // World-frame position, m.
+    float orientation[4] = {0.0f, 0.0f, 0.0f, 1.0f};   // World-frame orientation, x/y/z/w.
+    float angular_velocity[3] = {0.0f, 0.0f, 0.0f};    // Body-frame angular velocity, rad/s.
+};
+
 }  // namespace bpx_sdk
 
 #endif  // BPX_SDK_MOTION_TYPES_H_

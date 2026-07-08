@@ -12,6 +12,21 @@ def print_version():
     print(f"bpx_sdk version={getattr(bpx_sdk, '__version__', 'unknown')}")
 
 
+def print_robot_version(robot_state):
+    robot_version = robot_state.getRobotVersion()
+    if robot_version is None:
+        print("robot version: unknown (not supported by robot)")
+        return
+
+    major, minor, patch, commit, build_date, build_time = robot_version
+    print(
+        f"robot version (queried on connect): "
+        f"{major}.{minor}.{patch} "
+        f"commit=0x{commit:x} "
+        f"build={build_date}T{build_time:06d}"
+    )
+
+
 def main():
     options = parse_options(False)
 
@@ -34,10 +49,11 @@ def main():
         raise RuntimeError("failed to connect request robot state")
 
     try:
+        print_robot_version(robot_state)
+
         while True:
             joint_pos = robot_state.getJointPosition()
             rpy = robot_state.getImuRpy()
-            vel_body = robot_state.getCurrentVelocityBody()
             leg_odom = robot_state.getLegOdom()
             max_vel = robot_state.getMaxVelocity()
             battery = robot_state.getBatteryLevel()
@@ -47,15 +63,21 @@ def main():
                 print(f"  joint_pos[0]={joint_pos[0]:.3f}")
             if rpy is not None:
                 print(f"  rpy=({rpy[0]:.3f}, {rpy[1]:.3f}, {rpy[2]:.3f})")
-            if vel_body is not None:
-                print(
-                    f"  vel_body=({vel_body[0]:.3f}, "
-                    f"{vel_body[1]:.3f}, {vel_body[2]:.3f})"
-                )
             if leg_odom is not None:
+                position = leg_odom["position"]
+                velocity_body = leg_odom["velocity_body"]
+                orientation = leg_odom["orientation"]
+                angular_velocity = leg_odom["angular_velocity"]
                 print(
-                    f"  leg_odom=({leg_odom[0]:.3f}, "
-                    f"{leg_odom[1]:.3f}, {leg_odom[2]:.3f})"
+                    f"  leg_odom.position=({position[0]:.3f}, "
+                    f"{position[1]:.3f}, {position[2]:.3f}) "
+                    f"velocity_body=({velocity_body[0]:.3f}, "
+                    f"{velocity_body[1]:.3f}, {velocity_body[2]:.3f}) "
+                    f"orientation=({orientation[0]:.3f}, "
+                    f"{orientation[1]:.3f}, {orientation[2]:.3f}, "
+                    f"{orientation[3]:.3f}) "
+                    f"angular_velocity=({angular_velocity[0]:.3f}, "
+                    f"{angular_velocity[1]:.3f}, {angular_velocity[2]:.3f})"
                 )
             if max_vel is not None:
                 print(

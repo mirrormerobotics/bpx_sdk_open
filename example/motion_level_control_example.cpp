@@ -4,6 +4,7 @@
 
 #include <chrono>
 #include <cstdint>
+#include <iomanip>
 #include <iostream>
 #include <thread>
 
@@ -23,6 +24,27 @@ void printVersion() {
         << BPX_SDK_PROJECT_NAME
         << " version=" << BPX_SDK_PROJECT_VERSION
         << std::endl;
+}
+
+void printRobotVersion(const bpx_sdk::RequestRobotState& robot_state) {
+    uint16_t robot_major = 0;
+    uint16_t robot_minor = 0;
+    uint16_t robot_patch = 0;
+    uint32_t robot_commit = 0;
+    uint32_t robot_build = 0;
+    uint32_t robot_build_time = 0;
+    if (robot_state.getRobotVersion(&robot_major, &robot_minor, &robot_patch,
+                                    &robot_commit, &robot_build,
+                                    &robot_build_time)) {
+        std::cout << "robot version (queried on connect): "
+                  << robot_major << "." << robot_minor << "." << robot_patch
+                  << " commit=0x" << std::hex << robot_commit
+                  << " build=" << std::dec << robot_build
+                  << "T" << std::setw(6) << std::setfill('0') << robot_build_time
+                  << std::setfill(' ') << std::endl;
+    } else {
+        std::cout << "robot version: unknown (not supported by robot)" << std::endl;
+    }
 }
 
 }  // namespace
@@ -65,6 +87,8 @@ int main(int argc, char** argv) {
         std::cerr << "failed to connect motion level control" << std::endl;
         return 1;
     }
+
+    printRobotVersion(motion_level_control);
 
     std::cout << "motion level control running" << std::endl;
     DemoPhase phase = DemoPhase::kWait;

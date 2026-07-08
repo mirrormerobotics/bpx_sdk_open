@@ -12,6 +12,21 @@ def print_version():
     print(f"bpx_sdk version={getattr(bpx_sdk, '__version__', 'unknown')}")
 
 
+def print_robot_version(joint_level_control):
+    robot_version = joint_level_control.getRobotVersion()
+    if robot_version is None:
+        print("robot version: unknown (not supported by robot)")
+        return
+
+    major, minor, patch, commit, build_date, build_time = robot_version
+    print(
+        f"robot version (queried on connect): "
+        f"{major}.{minor}.{patch} "
+        f"commit=0x{commit:x} "
+        f"build={build_date}T{build_time:06d}"
+    )
+
+
 def format_values(values, count=6):
     return ", ".join(f"{values[i]:.3f}" for i in range(count))
 
@@ -135,6 +150,8 @@ def main():
         raise RuntimeError("failed to connect joint level control")
 
     try:
+        print_robot_version(joint_level_control)
+
         init_pos = None
         while init_pos is None:
             init_pos = joint_level_control.getJointPositionHighRate()

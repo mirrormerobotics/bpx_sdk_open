@@ -22,6 +22,21 @@ def print_version():
     print(f"bpx_sdk version={getattr(bpx_sdk, '__version__', 'unknown')}")
 
 
+def print_robot_version(motion_level_control):
+    robot_version = motion_level_control.getRobotVersion()
+    if robot_version is None:
+        print("robot version: unknown (not supported by robot)")
+        return
+
+    major, minor, patch, commit, build_date, build_time = robot_version
+    print(
+        f"robot version (queried on connect): "
+        f"{major}.{minor}.{patch} "
+        f"commit=0x{commit:x} "
+        f"build={build_date}T{build_time:06d}"
+    )
+
+
 def main():
     options = parse_options(False)
 
@@ -55,6 +70,8 @@ def main():
         raise RuntimeError("failed to connect motion level control")
 
     try:
+        print_robot_version(motion_level_control)
+
         print("motion level control running")
         phase = DemoPhase.WAIT
         phase_start = time.monotonic()
