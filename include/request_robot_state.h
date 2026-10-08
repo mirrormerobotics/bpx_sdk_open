@@ -2,6 +2,7 @@
 #define BPX_SDK_REQUEST_ROBOT_STATE_H_
 
 #include "bpx_sdk_config.h"
+#include "fault_code.h"
 #include "motion_types.h"
 
 #include <array>
@@ -74,6 +75,9 @@ public:
     bool getMotorTemperature(float motor_temperature[12]) const;
     bool getDriverTemperature(float driver_temperature[12]) const;
     bool getCurrentMotionState(uint8_t* current_state) const;
+    // On supporting firmware, current gait/sub-gait retain the pre-lie
+    // selection during SitDown/WaitingForStand, matching robot_state.
+    // StandingUp and motion states report the actual controller gait.
     bool getCurrentGait(uint8_t* current_gait) const;
     bool getLastMotionState(uint8_t* last_state) const;
     bool getLastGait(uint8_t* last_gait) const;
@@ -90,11 +94,22 @@ public:
     // Requires robot firmware using the same bitmask charger encoding.
     bool getChargerIn1(uint8_t* charger_in1) const;
     bool getChargerIn2(uint8_t* charger_in2) const;
+    // Hard estop switch state from the same 1 Hz flags: 1 = pressed (all
+    // joints unpowered), 0 = released. False until a 1 Hz packet arrives.
+    bool getHardEstop(uint8_t* hard_estop) const;
+    // Full active-fault snapshot from the dedicated 1 Hz fault channel
+    // (head=0x00F0): up to kMaxFaultEntries entries sorted by severity
+    // descending, entries[0] being the current top-priority fault. Requires
+    // robot firmware that publishes the channel; the robot keeps sending
+    // count=0 snapshots while fault-free, so false/nullopt only means no
+    // fault packet has been received yet (e.g. an older robot).
+    bool getFaultState(RobotFaultState* fault_state) const;
     bool getJointStateTimestamp(uint32_t* time_ms) const;
     bool getImuTimestamp(uint32_t* time_ms) const;
     bool getOdometryTimestamp(uint32_t* time_ms) const;
     bool getMotionStateTimestamp(uint32_t* time_ms) const;
     bool getBatteryTimestamp(uint32_t* time_ms) const;
+    bool getFaultTimestamp(uint32_t* time_ms) const;
 
     std::optional<std::array<float, 12>> getJointPositionArray() const;
     std::optional<std::array<float, 12>> getJointVelocityArray() const;
@@ -124,11 +139,14 @@ public:
     std::optional<float> getBatteryCurrentValue() const;
     std::optional<uint8_t> getChargerIn1Value() const;
     std::optional<uint8_t> getChargerIn2Value() const;
+    std::optional<uint8_t> getHardEstopValue() const;
+    std::optional<RobotFaultState> getFaultStateValue() const;
     std::optional<uint32_t> getJointStateTimestampValue() const;
     std::optional<uint32_t> getImuTimestampValue() const;
     std::optional<uint32_t> getOdometryTimestampValue() const;
     std::optional<uint32_t> getMotionStateTimestampValue() const;
     std::optional<uint32_t> getBatteryTimestampValue() const;
+    std::optional<uint32_t> getFaultTimestampValue() const;
 
 protected:
     virtual uint8_t hostServerMode() const;

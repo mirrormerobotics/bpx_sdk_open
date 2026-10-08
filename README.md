@@ -4,9 +4,32 @@
 
 `bpx_sdk_open` provides a lightweight C++ SDK for reading BPX robot state and sending motion-level or joint-level control commands.
 
-SDK version: `1.0.9`
+SDK version: `1.0.10`
 
-Documentation updated: `2026-09-08`
+### 1.0.10 preview (rc.1)
+
+This branch provides the **v1.0.10-rc.1 prerelease** for evaluation. The native SDK,
+Python package, and wheel versions remain `1.0.10`; the candidate identifier is
+carried by the GitHub tag and Release. The stable `master` branch remains on 1.0.9.
+
+Download the wheel matching your OS, architecture, and Python version from the
+[prerelease](https://github.com/mirrormerobotics/bpx_sdk_open/releases/tag/v1.0.10-rc.1).
+The release includes 28 wheels for CPython 3.8–3.14 across Linux x86_64/aarch64,
+Windows AMD64, and macOS arm64, plus `SHA256SUMS` for verification.
+
+```bash
+python3 -m pip install --no-index --find-links /path/to/downloaded --force-reinstall bpx-sdk-open==1.0.10
+python3 -c "import bpx_sdk; print(bpx_sdk.__version__)"
+```
+
+Replace `/path/to/downloaded` with the directory containing your downloaded wheel. Use `--force-reinstall`
+when replacing another wheel that also reports version `1.0.10`.
+For C++ examples or a source install, check out `v1.0.10-rc.1` before building.
+Hard estop feedback and the active fault channel require matching robot firmware;
+queries return `None`/false until their feedback arrives, including on older firmware
+that does not publish these fields. This prerelease is distributed through GitHub.
+
+Documentation updated: `2026-10-08`
 
 The SDK offers three usage modes:
 
@@ -96,6 +119,7 @@ Motion state `bpx_sdk::MotionState`:
 | `Passive`    | `2`       | Passive mode.            |
 | `SitDown`    | `3`       | Lying down in progress.  |
 | `Motion`     | `6`       | In motion.               |
+| `ChargingSitDown` | `24` | Charging sit-down in progress. |
 
 Gait `bpx_sdk::MotionGait`:
 
@@ -343,7 +367,17 @@ Control APIs:
 | `setVelocity(float x, float y, float yaw)` | Sends body velocity and yaw rate commands.                                             |
 | `setStandUp()`                             | Requests stand mode.                                                                   |
 | `setSitDown()`                             | Requests sit mode.                                                                     |
+| `setChargingSitDown()` | Requests charging sit-down; returns whether the command was sent. |
 | `setDamping()`                             | Requests joint damping mode.                                                           |
+
+Call `setChargingSitDown()` after connection is ready and the robot is in motion mode.
+It sends target state `24`, Walk gait, and zero velocity; the robot still applies its
+stationary-time and state-transition checks. `true` means sent, not completed.
+While executing, `getCurrentMotionState()` reports `MotionState::ChargingSitDown`.
+After entering damping, the current state is `Passive` and `getLastMotionState()`
+reports `ChargingSitDown`. These are existing motion-state feedback fields (up to
+10 Hz). Previous state is not a completion flag: a damping request or safety protection
+can also interrupt the action. Charger insertion is reported separately by `getChargerIn1/2()`, and the hard estop switch state by `getHardEstop()`.
 
 The five directional jump APIs are available for BPX. Call them after connection, while the robot
 is in motion mode and commanded velocity is zero. Each call requests one jump.
@@ -356,6 +390,40 @@ Before calling `setZeroPositionsFlag()`, ensure the robot's feet, shanks, and th
 `motion_level_control_example`, make sure the BPX is already in the required zeroing pose.
 
 Example: `example/motion_level_control_example.cpp`
+
+### Pose Tracking
+
+BPX and BPX-Pro support `setPoseTracking()` while already in `MotionState::Motion`. The request clears all six axes so the controller can change gait. A `true` result means sent; wait for `getCurrentGait()` / `getCurrentGaitEnum()` to report `PoseTracking` before sending nonzero input.
+
+`setPose(x, y, z, r)` accepts four finite normalized values in `[-1, 1]` in both C++ and Python; `r` is the yaw input. These are not pose values in meters or radians. The SDK fills the wire channels as `[x, y, r, z, 0, 0]`, keeping the two unexposed channels at zero.
+
+Before per-axis scaling, the current controller maps these inputs to `[-y, x, r, 0, 0, z]`, preserving the existing X/Y swap and resulting X inversion. The SDK does not duplicate this mapping.
+
+- `setPose()` always uses normalized control without changing the velocity-control preference set for ordinary motion. Calling `setVelocityControlFlag(false)` first is unnecessary.
+- It returns `false` for invalid values, an unavailable connection, or unless pose tracking was selected in the current connection and no other gait has since been selected. Rejected input preserves the last valid command. Python raises `TypeError` for incorrect argument counts or types.
+- The SDK periodically resends the latest input until replaced. `setPose()` does not wait for gait feedback. Use it for pose input and use `setVelocity()` for walking velocity.
+- `setPose(0, 0, 0, 0)` requests neutral input. Leaving pose tracking with `setWalk()` or another gait selector clears all six axes and restores the previous velocity-control preference. Wait for gait feedback before sending nonzero walking velocity.
+- Disconnect clears all six axes. Select pose tracking again after reconnecting.
+
+Complete examples: [C++](example/pose_tracking_example.cpp), [Python](example/pose_tracking_example.py). The bundled Linux x86_64/aarch64, Windows x86_64, and macOS arm64 libraries include these APIs.
+
+Both examples use the shared command-line parser and defaults, supporting `--robot-ip`, `--state-port` (alias `--robot-state-port`), `--tcp-local-port`, `--state-rate`, and `-h/--help`:
+
+After connecting, the examples call `setStandUp()` and wait for `Motion` feedback before entering pose tracking and sweeping `x → y → z → r` one channel at a time. Each channel first holds `-1000` for one second, then increases linearly to `1000` over three seconds, with updates every 20 ms (151 values). All other channels stay zero. Values are divided by `1000` before sending normalized SDK input; the terminal prints the original `x/y/z/r` values, where `r` is the SDK `yaw` channel. The `1000` endpoint is held for one second, followed by zero input for one second before the next channel. The final channel also pauses at zero for one second before returning to `Walk`. The examples then call `setSitDown()` to lie down and wait for `LyingDown` feedback before disconnecting and exiting. Standing and lying down each have a ten-second completion timeout; a timeout or send failure stops the sequence and disconnects.
+
+```bash
+./build/pose_tracking_example --robot-ip <ROBOT_IP> --state-rate 100
+python3 example/pose_tracking_example.py --robot-ip <ROBOT_IP> --state-rate 100
+```
+
+```cpp
+// Request after connecting, with the robot already in Motion state.
+const bool sent = motion.setPoseTracking();
+// In a later state loop, wait for pose-tracking feedback before nonzero input.
+if (sent && motion.getCurrentGaitEnum() == bpx_sdk::MotionGait::PoseTracking) {
+    motion.setPose(0.1f, -0.1f, 0.0f, 0.0f);
+}
+```
 
 ## Joint Control Layer
 
@@ -481,6 +549,63 @@ if mode is not None:
 `getChargerIn1()` and `getChargerIn2()` return `0` (removed), `1` (inserted), or `None`
 when feedback is unavailable. The C++ and Python examples display both values in their state output.
 
+`getHardEstop()` returns `1` while the hard estop switch on the robot is pressed (all
+joints unpowered), `0` when released, and `None` before 1 Hz feedback arrives. It is
+carried on bit 2 of the 1 Hz status flags and requires robot firmware that publishes
+it. The examples include it in the same state output line.
+
+`getFaultState()` returns the full active-fault snapshot from a dedicated 1 Hz UDP
+channel (head `0x00F0`): `{'entry_count': int, 'truncated': bool, 'entries':
+[{'code': int, 'occurred_t_ms': int}]}` in Python, a `RobotFaultState` struct in
+C++. Up to 32 entries are sorted severity-descending, so `entries[0]` is the
+top-priority fault; `entry_count=0` snapshots keep arriving as a heartbeat while
+the robot is fault-free. `None`/false only means no fault packet has been received
+yet (e.g. an older robot). `occurred_t_ms` is Unix epoch milliseconds; use the
+bitfield helpers in `fault_code.h` (`DecodeFaultSeverity/Module/SubModule/SubCode`)
+to render a code. The examples show a `faults=<count>[+truncated] top=0x…`
+summary. Requires robot firmware that publishes the channel; `getFaultTimestamp()`
+returns the snapshot's receive time on the monotonic clock.
+
+#### Currently reported fault codes
+
+The table below lists every fault code the current robot firmware actually
+detects and reports on the fault channel (verified against the detection
+code paths). Codes defined in the enums but not listed here are reserved for
+future detections and never appear on the wire today. `sub_module` is the
+joint index (0-11) unless noted; severity is embedded in the code
+(only `1=Warning` and `2=Error` are emitted today).
+
+| Module | Sub-code | Meaning | Sub-module | Typical severity |
+| --- | --- | --- | --- | --- |
+| `0x02` Joint | `0x0001` | Joint position out of range | joint index | Error |
+| `0x02` Joint | `0x0002` | Joint velocity out of range | joint index | Error |
+| `0x02` Joint | `0x0004` | No joint feedback data | joint index | Error |
+| `0x02` Joint | `0x0005` | Motor over temperature | hottest joint | Warning (early band) / Error (protection band) |
+| `0x02` Joint | `0x0007` | Invalid joint position feedback (NaN) | joint index | Error |
+| `0x02` Joint | `0x0008` | Invalid joint velocity feedback (NaN) | joint index | Error |
+| `0x02` Joint | `0x000A` | Joint communication lost | joint index | Error |
+| `0x02` Joint | `0x000B` | Joint did not reach the commanded pose | joint index | Error (raised while standing up) |
+| `0x02` Joint | `0x000C` | Knee motor model mismatch | `0xFF` | Error |
+| `0x02` Joint | `0x000D` | Joint assembled in the wrong position | joint index | Error |
+| `0x02` Joint | `0x000E` | Motor temperature abnormal relative to same-type joints | joint index | Warning |
+| `0x02` Joint | `0x000F` | Duplicated CAN ID | joint index | Error |
+| `0x02` Joint | `0x0010` | Invalid joint serial number | joint index | Error |
+| `0x02` Joint | `0x0011` | All joint communications lost at once | `0xFF` | Error |
+| `0x03` Driver | `0x0001` | Driver overvoltage | joint index | Warning / Error (soft-estop class) |
+| `0x03` Driver | `0x0002` | Driver undervoltage | joint index | Warning / Error (soft-estop class) |
+| `0x03` Driver | `0x0003` | Driver over temperature | joint index | Warning (early band) / Error (protection band) |
+| `0x03` Driver | `0x0004` | Motor stall protection | joint index | Warning / Error (soft-estop class) |
+| `0x03` Driver | `0x0005` | Driver temperature abnormal relative to same-type joints | joint index | Error |
+| `0x03` Driver | `0x0006` | Encoder not calibrated | joint index | Warning / Error (soft-estop class) |
+| `0x03` Driver | `0x0007` | ADC self-test failed | joint index | Warning / Error (soft-estop class) |
+| `0x04` IMU | `0x0001` | Acceleration out of range | `0xFF` | Warning |
+| `0x04` IMU | `0x0004` | No acceleration data | `0xFF` | Error |
+| `0x05` Battery | `0x0004` | Battery level too low | `0xFF` | Error |
+
+Not reported today (enum-reserved only): all `0x01` Motion codes; Joint
+`0x0003/0x0006/0x0009`; IMU `0x0002/0x0003`; Battery
+`0x0001/0x0002/0x0003/0x0005/0x0006`.
+
 `MotionLevelControl` provides five jump methods, all returning `None`:
 
 | Method | Action |
@@ -567,17 +692,17 @@ The GitHub Actions workflow in `.github/workflows/build-wheels.yml` builds wheel
 With Python 3.8+ and the GitHub CLI installed, and after running `gh auth login`, run:
 
 ```bash
-./scripts/build_wheels_github.py --ref master
+./scripts/build_wheels_github.py --ref prerelease/1.0.10
 ```
 
-On Windows, use `python scripts/build_wheels_github.py --ref master`.
+On Windows, use `python scripts/build_wheels_github.py --ref prerelease/1.0.10`.
 The script triggers `build-wheels.yml`, waits for the four platform jobs to build successfully,
 downloads and extracts the Actions artifacts, and collects the `.whl` files into `wheelhouse/` in
 this repository; the wheels themselves are left unchanged for pip installation.
 Use `--out-dir` to specify a different output directory; quote the path if it contains spaces:
 
 ```bash
-./scripts/build_wheels_github.py --ref master --out-dir /path/to/wheelhouse
+./scripts/build_wheels_github.py --ref prerelease/1.0.10 --out-dir /path/to/wheelhouse
 ```
 
 By default, the script identifies the GitHub repository from the current repository's `origin`; for
@@ -684,6 +809,30 @@ if robot_state.connect():
     robot_state.disconnect()
 ```
 
+Python adds `getFaultState() -> Optional[FaultState]` and
+`getFaultTimestamp() -> Optional[int]` on all state classes, plus the
+`FaultEntry` / `FaultState` TypedDicts. See the bundled `include/fault_code.h`
+for the 64-bit fault-code bitfields. Requires robot firmware that publishes the
+fault channel.
+
+Python 1.0.10 adds `MotionLevelControl.setChargingSitDown() -> bool` and
+`MotionState.ChargingSitDown = 24`. Updating the native SDK headers/libraries does
+not rebuild an installed Python extension: rebuild/reinstall the package with
+`python3 -m pip install --upgrade --force-reinstall .`, or install a 1.0.10 wheel.
+State getters continue to return integers or `None` and can be compared with the enum.
+
+```python
+# motion is an already-connected MotionLevelControl; robot is in motion mode.
+sent = motion.setChargingSitDown()
+print("command sent:", sent)
+# Poll feedback during subsequent control-loop iterations.
+current = motion.getCurrentMotionState()
+previous = motion.getLastMotionState()
+if current == bpx_sdk.MotionState.ChargingSitDown:
+    print("charging sit-down in progress")
+print("previous state:", previous)
+```
+
 Python method names match the C++ SDK. Read APIs return a
 `list`, `dict`, `int`, or `float` on success, and `None` when no valid data has been received yet. `getLegOdom()` returns a dict with `velocity_body`, `position`, `orientation`, and `angular_velocity` lists. Joint control APIs accept Python sequences with exactly 12 numbers:
 
@@ -722,9 +871,20 @@ python3 example/motion_level_control_client_example.py status
 
 The server listens on `127.0.0.1:50051` by default. For separate machines, set the server's `--listen-ip` and the client's `--server-ip`; use `--listen-port` and `--server-port` to change the port. This example has no authentication and is intended for trusted networks. The server handles client connections sequentially; running a client without a command starts interactive mode.
 
-`status` reports connection status, SN, model, ControlMode, motion state, gait, maximum velocity, battery level/current, and both charger inputs. Missing fields show `<unavailable>`. The server prints status every second with a local timestamp including milliseconds, keeping `battery_level`, `battery_current`, `charger_in1`, and `charger_in2` on the same line.
+`status` reports connection status, SN, model, ControlMode, current/previous motion state, gait, maximum velocity, battery level/current, and both charger inputs. Missing fields show `<unavailable>`. The server prints status every second with a local timestamp including milliseconds, keeping `battery_level`, `battery_current`, `charger_in1`, `charger_in2`, and `hard_estop` on the same line.
 
-Commands include `zero`, `stand`, `sit`, `damping`, `stop`, `velocity X Y YAW`, `velocity-control on|off`, and `gait NAME`. For BPX, `jump up|front|back|left|right` selects the five jump directions. Available actions depend on the robot model. Use the client’s `-h`/`--help` to view all commands without connecting. While connected, use `help` to list commands and gait/jump choices; `quit` (or `shutdown`) stops the server. An `OK` response means the server handled the command, not that the robot completed the action.
+Commands include `zero`, `stand`, `sit`, `charging-sit`, `damping`, `stop`, `velocity X Y YAW`, `velocity-control on|off`, and `gait NAME`. For BPX, `jump up|front|back|left|right` selects the five jump directions. Available actions depend on the robot model. Use the client’s `-h`/`--help` to view all commands without connecting. While connected, use `help` to list commands and gait/jump choices; `quit` (or `shutdown`) stops the server. An `OK` response means the server handled the command, not that the robot completed the action.
+
+`charging-sit` calls `setChargingSitDown()` in both server implementations.
+Query `status` to read `motion_state=24(ChargingSitDown)` while executing,
+or `last_motion_state=24(ChargingSitDown)` after exiting to damping.
+
+```bash
+./build/motion_level_control_client_example charging-sit
+./build/motion_level_control_client_example status
+python3 example/motion_level_control_client_example.py charging-sit
+python3 example/motion_level_control_client_example.py status
+```
 
 ## License
 

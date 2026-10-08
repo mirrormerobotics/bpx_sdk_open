@@ -20,6 +20,8 @@ using bpx_sdk::JointLevelControl;
 using bpx_sdk::LegOdom;
 using bpx_sdk::MotionLevelControl;
 using bpx_sdk::RequestRobotState;
+using bpx_sdk::RobotFaultEntry;
+using bpx_sdk::RobotFaultState;
 
 struct RequestRobotStateObject {
     PyObject_HEAD
@@ -154,6 +156,62 @@ PyObject* leg_odom_to_dict(const LegOdom& leg_odom) {
         Py_DECREF(dict);
         return nullptr;
     }
+    return dict;
+}
+
+PyObject* fault_entry_to_dict(const RobotFaultEntry& entry) {
+    PyObject* dict = PyDict_New();
+    if (!dict) {
+        return nullptr;
+    }
+    PyObject* code = PyLong_FromUnsignedLongLong(entry.code);
+    PyObject* occurred = PyLong_FromUnsignedLongLong(entry.occurred_t_ms);
+    if (!code || !occurred ||
+        PyDict_SetItemString(dict, "code", code) < 0 ||
+        PyDict_SetItemString(dict, "occurred_t_ms", occurred) < 0) {
+        Py_XDECREF(code);
+        Py_XDECREF(occurred);
+        Py_DECREF(dict);
+        return nullptr;
+    }
+    Py_DECREF(code);
+    Py_DECREF(occurred);
+    return dict;
+}
+
+PyObject* fault_state_to_dict(const RobotFaultState& fault_state) {
+    PyObject* dict = PyDict_New();
+    if (!dict) {
+        return nullptr;
+    }
+    PyObject* entries = PyList_New(0);
+    if (!entries) {
+        Py_DECREF(dict);
+        return nullptr;
+    }
+    for (uint32_t i = 0; i < fault_state.entry_count; ++i) {
+        PyObject* entry = fault_entry_to_dict(fault_state.entries[i]);
+        if (!entry || PyList_Append(entries, entry) < 0) {
+            Py_XDECREF(entry);
+            Py_DECREF(entries);
+            Py_DECREF(dict);
+            return nullptr;
+        }
+        Py_DECREF(entry);
+    }
+    PyObject* count = PyLong_FromUnsignedLong(fault_state.entry_count);
+    PyObject* truncated = fault_state.truncated ? Py_True : Py_False;
+    if (!count ||
+        PyDict_SetItemString(dict, "entry_count", count) < 0 ||
+        PyDict_SetItemString(dict, "truncated", truncated) < 0 ||
+        PyDict_SetItemString(dict, "entries", entries) < 0) {
+        Py_XDECREF(count);
+        Py_DECREF(entries);
+        Py_DECREF(dict);
+        return nullptr;
+    }
+    Py_DECREF(count);
+    Py_DECREF(entries);
     return dict;
 }
 
@@ -483,6 +541,18 @@ PyObject* state_get_leg_odom(PyObject* self, PyObject*) {
     return leg_odom_to_dict(leg_odom);
 }
 
+PyObject* state_get_fault_state(PyObject* self, PyObject*) {
+    RequestRobotState* cpp = state_cpp(self);
+    if (!cpp) {
+        return nullptr;
+    }
+    RobotFaultState fault_state{};
+    if (!cpp->getFaultState(&fault_state)) {
+        Py_RETURN_NONE;
+    }
+    return fault_state_to_dict(fault_state);
+}
+
 #define STATE_U8_METHOD(py_name, cpp_name)                           \
     PyObject* py_name(PyObject* self, PyObject*) {                   \
         return state_u8(self, static_cast<bool (RequestRobotState::*)(uint8_t*) const>(&RequestRobotState::cpp_name)); \
@@ -496,6 +566,7 @@ STATE_U8_METHOD(state_get_sub_gait, getSubGait)
 STATE_U8_METHOD(state_get_battery_level, getBatteryLevel)
 STATE_U8_METHOD(state_get_charger_in1, getChargerIn1)
 STATE_U8_METHOD(state_get_charger_in2, getChargerIn2)
+STATE_U8_METHOD(state_get_hard_estop, getHardEstop)
 
 PyObject* state_get_battery_current(PyObject* self, PyObject*) {
     return state_float(self, &RequestRobotState::getBatteryCurrent);
@@ -511,6 +582,7 @@ STATE_U32_METHOD(state_get_imu_timestamp, getImuTimestamp)
 STATE_U32_METHOD(state_get_odometry_timestamp, getOdometryTimestamp)
 STATE_U32_METHOD(state_get_motion_state_timestamp, getMotionStateTimestamp)
 STATE_U32_METHOD(state_get_battery_timestamp, getBatteryTimestamp)
+STATE_U32_METHOD(state_get_fault_timestamp, getFaultTimestamp)
 
 PyObject* motion_set_motion_command_rate(PyObject* self, PyObject* args) {
     MotionLevelControl* cpp = motion_cpp(self);
@@ -587,6 +659,17 @@ PyObject* motion_set_velocity(PyObject* self, PyObject* args) {
     return py_bool(cpp->setVelocity(x, y, yaw));
 }
 
+PyObject* motion_set_pose(PyObject* self, PyObject* args) {
+    MotionLevelControl* cpp = motion_cpp(self);
+    if (!cpp) return nullptr;
+    float x = 0.0f;
+    float y = 0.0f;
+    float z = 0.0f;
+    float r = 0.0f;
+    if (!PyArg_ParseTuple(args, "ffff", &x, &y, &z, &r)) return nullptr;
+    return py_bool(cpp->setPose(x, y, z, r));
+}
+
 #define MOTION_BOOL_METHOD(py_name, cpp_name)                        \
     PyObject* py_name(PyObject* self, PyObject*) {                   \
         MotionLevelControl* cpp = motion_cpp(self);                  \
@@ -597,7 +680,9 @@ PyObject* motion_set_velocity(PyObject* self, PyObject* args) {
     }
 
 MOTION_BOOL_METHOD(motion_set_stand_up, setStandUp)
+MOTION_BOOL_METHOD(motion_set_pose_tracking, setPoseTracking)
 MOTION_BOOL_METHOD(motion_set_sit_down, setSitDown)
+MOTION_BOOL_METHOD(motion_set_charging_sit_down, setChargingSitDown)
 MOTION_BOOL_METHOD(motion_set_damping, setDamping)
 PyObject* motion_set_upright(PyObject*, PyObject*) {
     PyErr_SetString(PyExc_NotImplementedError,
@@ -765,12 +850,15 @@ PyMethodDef StateMethods[] = {
     METHOD("getBatteryLevel", state_get_battery_level, METH_NOARGS, nullptr),
     METHOD("getChargerIn1", state_get_charger_in1, METH_NOARGS, "Return 0 (removed), 1 (inserted), or None before feedback arrives."),
     METHOD("getChargerIn2", state_get_charger_in2, METH_NOARGS, "Return 0 (removed), 1 (inserted), or None before feedback arrives."),
+    METHOD("getHardEstop", state_get_hard_estop, METH_NOARGS, "Return 1 while the hard estop switch is pressed (all joints unpowered), 0 when released, or None before feedback arrives."),
+    METHOD("getFaultState", state_get_fault_state, METH_NOARGS, "Return the full active-fault snapshot from the 1 Hz fault channel as {'entry_count': int, 'truncated': bool, 'entries': [{'code': int, 'occurred_t_ms': int}]}, or None before the robot sends a fault packet. entries are sorted severity-descending, entries[0] being the top-priority fault. Requires robot firmware that publishes the channel; count=0 snapshots arrive while fault-free."),
     METHOD("getBatteryCurrent", state_get_battery_current, METH_NOARGS, nullptr),
     METHOD("getJointStateTimestamp", state_get_joint_state_timestamp, METH_NOARGS, nullptr),
     METHOD("getImuTimestamp", state_get_imu_timestamp, METH_NOARGS, nullptr),
     METHOD("getOdometryTimestamp", state_get_odometry_timestamp, METH_NOARGS, nullptr),
     METHOD("getMotionStateTimestamp", state_get_motion_state_timestamp, METH_NOARGS, nullptr),
     METHOD("getBatteryTimestamp", state_get_battery_timestamp, METH_NOARGS, nullptr),
+    METHOD("getFaultTimestamp", state_get_fault_timestamp, METH_NOARGS, nullptr),
     {nullptr, nullptr, 0, nullptr},
 };
 
@@ -808,17 +896,24 @@ PyMethodDef MotionMethods[] = {
     METHOD("getBatteryLevel", state_get_battery_level, METH_NOARGS, nullptr),
     METHOD("getChargerIn1", state_get_charger_in1, METH_NOARGS, "Return 0 (removed), 1 (inserted), or None before feedback arrives."),
     METHOD("getChargerIn2", state_get_charger_in2, METH_NOARGS, "Return 0 (removed), 1 (inserted), or None before feedback arrives."),
+    METHOD("getHardEstop", state_get_hard_estop, METH_NOARGS, "Return 1 while the hard estop switch is pressed (all joints unpowered), 0 when released, or None before feedback arrives."),
+    METHOD("getFaultState", state_get_fault_state, METH_NOARGS, "Return the full active-fault snapshot from the 1 Hz fault channel as {'entry_count': int, 'truncated': bool, 'entries': [{'code': int, 'occurred_t_ms': int}]}, or None before the robot sends a fault packet. entries are sorted severity-descending, entries[0] being the top-priority fault. Requires robot firmware that publishes the channel; count=0 snapshots arrive while fault-free."),
     METHOD("getBatteryCurrent", state_get_battery_current, METH_NOARGS, nullptr),
     METHOD("getJointStateTimestamp", state_get_joint_state_timestamp, METH_NOARGS, nullptr),
     METHOD("getImuTimestamp", state_get_imu_timestamp, METH_NOARGS, nullptr),
     METHOD("getOdometryTimestamp", state_get_odometry_timestamp, METH_NOARGS, nullptr),
     METHOD("getMotionStateTimestamp", state_get_motion_state_timestamp, METH_NOARGS, nullptr),
     METHOD("getBatteryTimestamp", state_get_battery_timestamp, METH_NOARGS, nullptr),
+    METHOD("getFaultTimestamp", state_get_fault_timestamp, METH_NOARGS, nullptr),
     METHOD("setMotionCommandRate", motion_set_motion_command_rate, METH_VARARGS, nullptr),
     METHOD("setVelocityControlFlag", motion_set_velocity_control_flag, METH_VARARGS, nullptr),
     METHOD("setZeroPositionsFlag", motion_set_zero_positions_flag, METH_NOARGS, nullptr),
     METHOD("setWalk", motion_set_walk, METH_NOARGS, nullptr),
     METHOD("setRunning", motion_set_running, METH_NOARGS, nullptr),
+    METHOD("setPoseTracking", motion_set_pose_tracking, METH_NOARGS,
+           "Request pose tracking with zero axes; True means sent. Wait for gait feedback before nonzero input."),
+    METHOD("setPose", motion_set_pose, METH_VARARGS,
+           "Send four normalized inputs (x, y, z, r), each in [-1, 1]; r is yaw. Requires setPoseTracking()."),
     METHOD("setLeftFlip", motion_set_left_flip, METH_NOARGS, nullptr),
     METHOD("setRightFlip", motion_set_right_flip, METH_NOARGS, nullptr),
     METHOD("setUpJump", motion_set_up_jump, METH_NOARGS, "Request one BPX jump."),
@@ -834,6 +929,8 @@ PyMethodDef MotionMethods[] = {
     METHOD("setVelocity", motion_set_velocity, METH_VARARGS, nullptr),
     METHOD("setStandUp", motion_set_stand_up, METH_NOARGS, nullptr),
     METHOD("setSitDown", motion_set_sit_down, METH_NOARGS, nullptr),
+    METHOD("setChargingSitDown", motion_set_charging_sit_down, METH_NOARGS,
+           "Request charging sit-down; True means sent, not completed. Read motion-state feedback for progress."),
     METHOD("setDamping", motion_set_damping, METH_NOARGS, nullptr),
     METHOD("setUpright", motion_set_upright, METH_NOARGS, nullptr),
     {nullptr, nullptr, 0, nullptr},
@@ -873,12 +970,15 @@ PyMethodDef JointMethods[] = {
     METHOD("getBatteryLevel", state_get_battery_level, METH_NOARGS, nullptr),
     METHOD("getChargerIn1", state_get_charger_in1, METH_NOARGS, "Return 0 (removed), 1 (inserted), or None before feedback arrives."),
     METHOD("getChargerIn2", state_get_charger_in2, METH_NOARGS, "Return 0 (removed), 1 (inserted), or None before feedback arrives."),
+    METHOD("getHardEstop", state_get_hard_estop, METH_NOARGS, "Return 1 while the hard estop switch is pressed (all joints unpowered), 0 when released, or None before feedback arrives."),
+    METHOD("getFaultState", state_get_fault_state, METH_NOARGS, "Return the full active-fault snapshot from the 1 Hz fault channel as {'entry_count': int, 'truncated': bool, 'entries': [{'code': int, 'occurred_t_ms': int}]}, or None before the robot sends a fault packet. entries are sorted severity-descending, entries[0] being the top-priority fault. Requires robot firmware that publishes the channel; count=0 snapshots arrive while fault-free."),
     METHOD("getBatteryCurrent", state_get_battery_current, METH_NOARGS, nullptr),
     METHOD("getJointStateTimestamp", state_get_joint_state_timestamp, METH_NOARGS, nullptr),
     METHOD("getImuTimestamp", state_get_imu_timestamp, METH_NOARGS, nullptr),
     METHOD("getOdometryTimestamp", state_get_odometry_timestamp, METH_NOARGS, nullptr),
     METHOD("getMotionStateTimestamp", state_get_motion_state_timestamp, METH_NOARGS, nullptr),
     METHOD("getBatteryTimestamp", state_get_battery_timestamp, METH_NOARGS, nullptr),
+    METHOD("getFaultTimestamp", state_get_fault_timestamp, METH_NOARGS, nullptr),
     METHOD("setJointStateUploadPort", joint_set_joint_state_upload_port, METH_VARARGS, nullptr),
     METHOD("setJointCommand", joint_set_joint_command, METH_VARARGS, nullptr),
     METHOD("setJointKp", joint_set_joint_kp, METH_VARARGS, nullptr),
@@ -996,6 +1096,7 @@ PyMODINIT_FUNC PyInit__bpx_sdk() {
     add_int_constant(module, "MOTION_STATE_STANDING_UP", static_cast<long>(bpx_sdk::MotionState::StandingUp));
     add_int_constant(module, "MOTION_STATE_PASSIVE", static_cast<long>(bpx_sdk::MotionState::Passive));
     add_int_constant(module, "MOTION_STATE_SIT_DOWN", static_cast<long>(bpx_sdk::MotionState::SitDown));
+    add_int_constant(module, "MOTION_STATE_CHARGING_SIT_DOWN", static_cast<long>(bpx_sdk::MotionState::ChargingSitDown));
     add_int_constant(module, "MOTION_STATE_MOTION", static_cast<long>(bpx_sdk::MotionState::Motion));
 
     add_int_constant(module, "MOTION_GAIT_WALK", static_cast<long>(bpx_sdk::MotionGait::Walk));

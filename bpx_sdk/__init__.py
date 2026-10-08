@@ -75,6 +75,7 @@ class MotionState(IntEnum):
     Passive = _native.MOTION_STATE_PASSIVE
     SitDown = _native.MOTION_STATE_SIT_DOWN
     Motion = _native.MOTION_STATE_MOTION
+    ChargingSitDown = _native.MOTION_STATE_CHARGING_SIT_DOWN
 
 
 class MotionGait(IntEnum):

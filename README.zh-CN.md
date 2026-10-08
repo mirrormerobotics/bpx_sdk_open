@@ -4,9 +4,34 @@
 
 `bpx_sdk_open` 提供一个轻量级 C++ SDK，用于读取 BPX 机器人状态，并发送运动级或关节级控制指令。
 
-SDK 版本：`1.0.9`
+SDK 版本：`1.0.10`
 
-文档更新日期：`2026-09-08`
+### 1.0.10 预发布（rc.1）
+
+当前分支提供 **v1.0.10-rc.1 预发布版**，用于试用验证。原生 SDK、Python 包和
+wheel 版本仍为 `1.0.10`，候选版编号由 GitHub 标签和 Release 标识；稳定分支
+`master` 继续保留 1.0.9。
+
+从[预发布页面](https://github.com/mirrormerobotics/bpx_sdk_open/releases/tag/v1.0.10-rc.1)
+下载与操作系统、架构和 Python 版本匹配的 wheel。附件包括 CPython 3.8–3.14 在
+Linux x86_64/aarch64、Windows AMD64 和 macOS arm64 上的 28 个 wheel，以及
+用于校验的 `SHA256SUMS`。
+
+```bash
+python3 -m pip install --no-index --find-links /path/to/downloaded --force-reinstall bpx-sdk-open==1.0.10
+python3 -c "import bpx_sdk; print(bpx_sdk.__version__)"
+```
+
+请将 `/path/to/downloaded` 替换为存放已下载 wheel 的目录。替换另一个同为 `1.0.10` 的 wheel
+时使用 `--force-reinstall`。构建 C++ 示例或从源码安装前，请先检出标签
+`v1.0.10-rc.1`。硬急停状态和活动故障通道需要配套机器人固件；收到对应反馈前，
+查询返回 `None`/false，旧固件未发布这些字段时同样如此。本次预发布通过 GitHub 分发。
+
+如需远程构建，执行 `python3 scripts/build_wheels_github.py --ref prerelease/1.0.10`。
+脚本默认从当前仓库的 `origin` 自动识别目标，下载完成后默认不查询账单；维护者可
+按需添加 `--show-usage`，或使用 `--usage-only` 单独查询。
+
+文档更新日期：`2026-10-08`
 
 SDK 提供三种使用模式：
 
@@ -95,6 +120,7 @@ SDK 提供类型安全的运动状态和步态枚举，可用于读取当前/上
 | `Passive`    | `2` | 被动状态。 |
 | `SitDown`    | `3` | 趴下中状态。 |
 | `Motion`     | `6` | 运动状态。 |
+| `ChargingSitDown` | `24` | 充电坐下动作执行中。 |
 
 步态 `bpx_sdk::MotionGait`：
 
@@ -370,7 +396,16 @@ if (!motion.connect()) {
 | `setVelocity(float x, float y, float yaw)` | 发送机身速度/偏航速度指令。                 |
 | `setStandUp()`                             | 请求站立模式。                        |
 | `setSitDown()`                             | 请求坐下模式。                        |
+| `setChargingSitDown()` | 请求充电坐下；返回命令是否发送成功。 |
 | `setDamping()`                             | 请求关节阻尼模式。                      |
+
+连接就绪且机器人处于运动模式后，调用 `setChargingSitDown()` 请求充电坐下。
+它发送目标状态 `24`、Walk 步态和零速度；机器端仍执行静止时间及状态切换检查。
+返回 `true` 仅表示发送成功，不代表动作完成。执行中，`getCurrentMotionState()`
+返回 `MotionState::ChargingSitDown`；进入阻尼后，当前状态为 `Passive`，
+`getLastMotionState()` 返回 `ChargingSitDown`。这些字段沿用最高 10 Hz 的运动状态反馈。
+上一状态不是完成标志，阻尼请求或安全保护也可能提前中断动作；充电器是否插入需另读
+`getChargerIn1/2()`，硬急停开关状态见 `getHardEstop()`。
 
 五种定向跳跃适用于 BPX。连接就绪后，在机器人进入运动模式且速度指令为零时调用。
 每次调用请求一次跳跃。`setPronk()` 用于切换 Pronk 步态。
@@ -382,6 +417,40 @@ if (!motion.connect()) {
 `motion_level_control_example` 前，需要先确保 BPX 已处于上述标零姿态。
 
 示例文件：`example/motion_level_control_example.cpp`
+
+### 原地模式（PoseTracking）
+
+BPX 和 BPX-Pro 支持通过 `setPoseTracking()` 请求原地模式。机器人须已处于 `MotionState::Motion`；请求会将六轴全部清零，以满足步态切换条件。返回 `true` 只表示命令已发送，需要等待 `getCurrentGait()` / `getCurrentGaitEnum()` 返回 `PoseTracking` 后，再发送非零姿态输入。
+
+`setPose(x, y, z, r)` 在 C++ 和 Python 中都接收四个有限的归一化值，每个值须在 `[-1, 1]` 内，`r` 对应 yaw 输入。这些不是以米或弧度表示的位姿。SDK 内部按 `[x, y, r, z, 0, 0]` 填充协议通道，未开放的两个通道固定为零。
+
+当前控制端在各轴缩放前映射为 `[-y, x, r, 0, 0, z]`，保留已有的 X/Y 互换及互换后的 X 反向；SDK 不重复执行该映射。
+
+- `setPose()` 自动使用归一化控制，不需要调用 `setVelocityControlFlag(false)`，也不会改变调用者为普通速度控制设置的标志。
+- 未在当前连接中调用 `setPoseTracking()`、已选择其他步态、连接未就绪或数值非法时，`setPose()` 返回 `false`，保留上一条有效命令。Python 的参数数量或类型错误抛出 `TypeError`。
+- `setPose()` 更新后由 SDK 后台周期发送，直到后续命令覆盖；它不会自动等待步态反馈。使用 `setPose()` 控制原地姿态，使用 `setVelocity()` 控制行走速度。
+- `setPose(0, 0, 0, 0)` 回到中性输入。`setWalk()` 等步态选择接口离开原地模式时会清零六轴，并恢复原来的速度控制标志；下一条非零行走命令应在步态反馈确认后发送。
+- 断线会清零全部六轴；重连后须重新选择原地模式。
+
+完整示例：[C++](example/pose_tracking_example.cpp)、[Python](example/pose_tracking_example.py)。随包提供的 Linux x86_64/aarch64、Windows x86_64 和 macOS arm64 库均包含这两个新接口。
+
+两个示例复用公共命令行参数，支持 `--robot-ip`、`--state-port`（别名 `--robot-state-port`）、`--tcp-local-port`、`--state-rate` 和 `-h/--help`，默认值与其他运动控制示例一致：
+
+示例连接后自动调用 `setStandUp()`，等待状态反馈为 `Motion` 后再进入原地模式，依次测试 `x → y → z → r`。每个通道先在 `-1000` 保持 1 秒，再用 3 秒线性增加到 `1000`，每 20 ms 更新一次（共 151 个值），其余通道始终为零。发送前除以 `1000` 转为 SDK 的归一化输入，终端打印原始 `x/y/z/r` 值；`r` 对应 SDK 的 `yaw` 通道。每个通道到达 `1000` 后保持 1 秒，再归零并等待 1 秒，随后测试下一个通道。最后一个通道也归零等待 1 秒，再切回 `Walk`，随后调用 `setSitDown()` 自动趴下，等待状态反馈为 `LyingDown` 后断开连接并退出。站立和趴下的完成等待各最多 10 秒，超时或发送失败时停止流程并断开连接。
+
+```bash
+./build/pose_tracking_example --robot-ip <机器人IP> --state-rate 100
+python3 example/pose_tracking_example.py --robot-ip <机器人IP> --state-rate 100
+```
+
+```cpp
+// 在连接就绪、机器人处于 Motion 状态后请求。
+const bool sent = motion.setPoseTracking();
+// 在后续状态循环确认进入原地模式，再发送姿态。
+if (sent && motion.getCurrentGaitEnum() == bpx_sdk::MotionGait::PoseTracking) {
+    motion.setPose(0.1f, -0.1f, 0.0f, 0.0f);
+}
+```
 
 ## 关节控制层
 
@@ -505,6 +574,57 @@ if mode is not None:
 
 `getChargerIn1()`、`getChargerIn2()` 返回 `0`（未插入）或 `1`（已插入），尚无反馈时返回 `None`。
 C++ 和 Python 示例均在状态输出中显示这两个值。
+
+`getHardEstop()` 在机器人硬急停开关按下（所有关节掉电）期间返回 `1`，释放后返回 `0`，
+1 Hz 反馈到达前返回 `None`。该状态由 1 Hz 状态标志位 bit 2 携带，需要机器人固件支持
+发布。示例的状态输出行中同样包含该值。
+
+`getFaultState()` 返回专用 1 Hz UDP 通道（head `0x00F0`）的全量活动故障快照：
+Python 为 `{'entry_count': int, 'truncated': bool, 'entries': [{'code': int,
+'occurred_t_ms': int}]}`，C++ 为 `RobotFaultState` 结构体。最多 32 条，按
+severity 降序排列，`entries[0]` 即当前最高优先级故障；机器人无故障时仍以
+`entry_count=0` 心跳包持续上报。返回 `None`/false 仅表示尚未收到故障包
+（例如旧固件）。`occurred_t_ms` 为 Unix epoch 毫秒；可使用 `fault_code.h`
+中的位域解码辅助（`DecodeFaultSeverity/Module/SubModule/SubCode`）渲染故障码。
+示例输出 `faults=<count>[+truncated] top=0x…` 摘要。需要机器人固件支持该通道；
+`getFaultTimestamp()` 返回快照接收时间（单调时钟）。
+
+#### 当前固件实际会报告的故障码
+
+下表列出当前机器人固件在故障通道上**实际会检测并报告**的全部故障码（已逐一对
+照检测代码路径核实）。枚举中定义但未列出的码仅作预留，当前固件不会在线上出现。
+除特别注明外，`sub_module` 为关节编号（0-11）；severity 编码在故障码中
+（当前固件只会出现 `1=Warning`、`2=Error`）。
+
+| 模块 | 子码 | 含义 | sub_module | 典型 severity |
+| --- | --- | --- | --- | --- |
+| `0x02` 关节 | `0x0001` | 关节位置超限 | 关节编号 | Error |
+| `0x02` 关节 | `0x0002` | 关节速度超限 | 关节编号 | Error |
+| `0x02` 关节 | `0x0004` | 无关节数据反馈 | 关节编号 | Error |
+| `0x02` 关节 | `0x0005` | 电机过温 | 最热关节 | Warning（预警带）/ Error（保护带） |
+| `0x02` 关节 | `0x0007` | 非法关节位置反馈（NaN） | 关节编号 | Error |
+| `0x02` 关节 | `0x0008` | 非法关节速度反馈（NaN） | 关节编号 | Error |
+| `0x02` 关节 | `0x000A` | 关节通信断开 | 关节编号 | Error |
+| `0x02` 关节 | `0x000B` | 关节执行不到位 | 关节编号 | Error（站立过程判定） |
+| `0x02` 关节 | `0x000C` | 膝关节型号不一致 | `0xFF` | Error |
+| `0x02` 关节 | `0x000D` | 关节装配位置错误 | 关节编号 | Error |
+| `0x02` 关节 | `0x000E` | 电机温度相对异常（同类关节温差过大） | 关节编号 | Warning |
+| `0x02` 关节 | `0x000F` | CAN ID 重复 | 关节编号 | Error |
+| `0x02` 关节 | `0x0010` | 关节 SN 不合规 | 关节编号 | Error |
+| `0x02` 关节 | `0x0011` | 关节通信同时断连 | `0xFF` | Error |
+| `0x03` 驱动器 | `0x0001` | 驱动器过压 | 关节编号 | Warning / Error（需软急停类） |
+| `0x03` 驱动器 | `0x0002` | 驱动器欠压 | 关节编号 | Warning / Error（需软急停类） |
+| `0x03` 驱动器 | `0x0003` | 驱动器过温 | 关节编号 | Warning（预警带）/ Error（保护带） |
+| `0x03` 驱动器 | `0x0004` | 电机堵转保护 | 关节编号 | Warning / Error（需软急停类） |
+| `0x03` 驱动器 | `0x0005` | 驱动器温度相对异常（同类关节温差过大） | 关节编号 | Error |
+| `0x03` 驱动器 | `0x0006` | 编码器未校准 | 关节编号 | Warning / Error（需软急停类） |
+| `0x03` 驱动器 | `0x0007` | ADC 自检失败 | 关节编号 | Warning / Error（需软急停类） |
+| `0x04` IMU | `0x0001` | 加速度超限 | `0xFF` | Warning |
+| `0x04` IMU | `0x0004` | 无加速度数据 | `0xFF` | Error |
+| `0x05` 电池 | `0x0004` | 电池电量过低 | `0xFF` | Error |
+
+当前不会报告（仅枚举预留）：`0x01` 运动控制整组；关节 `0x0003/0x0006/0x0009`；
+IMU `0x0002/0x0003`；电池 `0x0001/0x0002/0x0003/0x0005/0x0006`。
 
 `MotionLevelControl` 提供五个跳跃方法，返回值均为 `None`：
 
@@ -630,6 +750,23 @@ if robot_state.connect():
     robot_state.disconnect()
 ```
 
+Python 1.0.10 新增 `MotionLevelControl.setChargingSitDown() -> bool` 和
+`MotionState.ChargingSitDown = 24`。更新原生 SDK 头文件、动态库不会自动重建已安装的
+Python 扩展，需要执行 `python3 -m pip install --upgrade --force-reinstall .` 重新安装，
+或安装 1.0.10 wheel。状态读取仍返回整数或 `None`，可直接与枚举比较。
+
+```python
+# motion is an already-connected MotionLevelControl; robot is in motion mode.
+sent = motion.setChargingSitDown()
+print("command sent:", sent)
+# Poll feedback during subsequent control-loop iterations.
+current = motion.getCurrentMotionState()
+previous = motion.getLastMotionState()
+if current == bpx_sdk.MotionState.ChargingSitDown:
+    print("charging sit-down in progress")
+print("previous state:", previous)
+```
+
 Python 方法名与 C++ SDK 保持一致。读取类接口成功时返回
 `list`、`dict`、`int` 或 `float`，暂未收到有效数据时返回 `None`。`getLegOdom()` 返回包含 `velocity_body`、`position`、`orientation`、`angular_velocity` 四个列表字段的 dict。关节控制接口接收长度为 12 的 Python 序列，例如：
 
@@ -666,9 +803,20 @@ python3 example/motion_level_control_client_example.py status
 
 服务端默认监听 `127.0.0.1:50051`。跨机器使用时，服务端通过 `--listen-ip` 指定监听地址，客户端通过 `--server-ip` 指定服务端地址；端口分别使用 `--listen-port` 和 `--server-port`。该示例没有认证，仅适用于可信网络。一个服务端依次处理客户端连接；客户端不带命令时进入交互模式。
 
-`status` 返回连接状态、SN、机型、ControlMode、运动状态、步态、最大速度以及电池和充电状态；暂不可用的字段显示 `<unavailable>`。服务端每秒打印带本机毫秒时间戳的状态，`battery_level`、`battery_current`、`charger_in1` 和 `charger_in2` 位于同一行。
+`status` 返回连接状态、SN、机型、ControlMode、当前/上一运动状态、步态、最大速度以及电池和充电状态；暂不可用的字段显示 `<unavailable>`。服务端每秒打印带本机毫秒时间戳的状态，`battery_level`、`battery_current`、`charger_in1`、`charger_in2` 和 `hard_estop` 位于同一行。
 
-支持 `zero`、`stand`、`sit`、`damping`、`stop`、`velocity X Y YAW`、`velocity-control on|off` 和 `gait NAME`；`jump up|front|back|left|right` 分别对应向上、向前、向后、向左、向右跳跃（BPX）。实际可用动作以机型支持为准。客户端 `-h`/`--help` 可在不连接服务端时查看完整命令；连接后输入 `help` 可查看命令及全部步态、跳跃选项，`quit`（或 `shutdown`）关闭服务端。客户端显示的 `OK` 表示命令已被服务端处理，不表示机器人已完成动作。
+支持 `zero`、`stand`、`sit`、`charging-sit`、`damping`、`stop`、`velocity X Y YAW`、`velocity-control on|off` 和 `gait NAME`；`jump up|front|back|left|right` 分别对应向上、向前、向后、向左、向右跳跃（BPX）。实际可用动作以机型支持为准。客户端 `-h`/`--help` 可在不连接服务端时查看完整命令；连接后输入 `help` 可查看命令及全部步态、跳跃选项，`quit`（或 `shutdown`）关闭服务端。客户端显示的 `OK` 表示命令已被服务端处理，不表示机器人已完成动作。
+
+两种服务端的 `charging-sit` 命令均调用 `setChargingSitDown()`。执行中查询 `status`
+可见 `motion_state=24(ChargingSitDown)`；退出到阻尼后可见
+`last_motion_state=24(ChargingSitDown)`。
+
+```bash
+./build/motion_level_control_client_example charging-sit
+./build/motion_level_control_client_example status
+python3 example/motion_level_control_client_example.py charging-sit
+python3 example/motion_level_control_client_example.py status
+```
 
 ## 许可证
 

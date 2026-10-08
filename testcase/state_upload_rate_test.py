@@ -44,6 +44,7 @@ GROUPS = (
     Group("leg_odom", 0x0050, 52, 10, False),
     Group("motion", 0x0010, 20, 5, False),
     Group("battery_temp", 0x0001, 32, 1, False),
+    Group("fault", 0x00F0, 520, 1, False),
 )
 GROUP_BY_HEADER = {group.header: group for group in GROUPS}
 

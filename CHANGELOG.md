@@ -9,6 +9,76 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.10-rc.1] - 2026-10-08
+
+GitHub prerelease rc.1; SDK and Python package versions remain `1.0.10`.
+The 28 bundled wheels are reused unchanged from the current SDK snapshot.
+
+### Added
+
+- Add `setChargingSitDown()` to C++ and Python, including Python type hints and
+  `MotionState.ChargingSitDown = 24` for motion-state feedback.
+- Add `charging-sit` to both C++/Python server/client examples and show current
+  and previous motion states in status queries and telemetry.
+- Add loopback coverage for Python command encoding, state feedback, and all
+  C++/Python server/client combinations.
+- Add `setPoseTracking()` and `setPose(x, y, z, r)` to C++ and Python for
+  BPX/BPX-Pro pose tracking, including Python type hints. Pose inputs are finite
+  normalized values in `[-1, 1]`; `r` is yaw, and the two unused wire channels
+  remain zero.
+- Add C++ and Python pose-tracking examples using the shared connection options.
+  Each example automatically stands up, waits for motion and gait feedback,
+  sweeps `x`, `y`, `z`, and `r` in order, then lies down and waits for completion.
+  Each axis holds `-1000` for one second, sweeps to `1000` over three seconds,
+  holds for one second, then returns to zero for one second. Output includes
+  all four values.
+- Add loopback coverage for pose input validation, wire-channel mapping,
+  gait transitions, and example sequencing and timing.
+- Add `getHardEstop()` / `getHardEstopValue()` to C++ state queries and
+  `getHardEstop()` to all Python state classes (with type hints): 1 while the
+  hard estop switch is pressed (all joints unpowered), 0 when released, and
+  `None`/false before 1 Hz feedback arrives. Carried on bit 2 of the 1 Hz
+  status flags; requires robot firmware that publishes it.
+- Add `getFaultState()` / `getFaultStateValue()` to C++ state queries and
+  `getFaultState()` to all Python state classes (with `FaultEntry` /
+  `FaultState` type hints): the full active-fault snapshot from a dedicated
+  1 Hz UDP channel (head `0x00F0`), up to 32 `{code, occurred_t_ms}` entries
+  plus a `truncated` flag. Entries are sorted severity-descending, so
+  `entries[0]` is the top-priority fault; `entry_count=0` snapshots arrive as
+  a heartbeat while the robot is fault-free. `None`/false only means no fault
+  packet has been received yet (e.g. an older robot). Custom fields stay on
+  the robot's local IPC channel.
+- Add `getFaultTimestamp()` / `getFaultTimestampValue()` for the receive
+  time of the latest fault snapshot (monotonic clock, not comparable with
+  `occurred_t_ms`, which is Unix epoch milliseconds).
+- Add the public header `fault_code.h` documenting the 64-bit fault-code
+  bitfields (version / separator / severity / module / sub-module / sub-code)
+  with `DecodeFault*()` helpers and `FaultSeverity` / `FaultModule` enums, so
+  applications can render codes without internal headers.
+- Show an active-fault summary (`faults=<count>[+truncated] top=0x…`) in the
+  C++ and Python feedback examples.
+
+### Changed
+
+- Refresh the bundled native SDK headers and libraries to 1.0.10.
+- Refresh the public header and bundled Linux x86_64/aarch64, Windows x86_64,
+  and macOS arm64 SDK libraries for pose tracking.
+- Document pose input limits, gait feedback requirements, and zeroing behavior
+  when leaving pose tracking or disconnecting.
+- Unknown UDP packet heads are now logged once per head value instead of once
+  per packet, keeping logs clean as new channels appear.
+- `FaultCodeManager` on the robot is now thread-safe and its snapshot ordering
+  is deterministic (severity descending, ties by smallest packed code), which
+  also makes the IPC `primary_code` stable across runs.
+
+### Compatibility
+
+- Requires robot firmware that publishes the fault channel. Older robots keep
+  working; the fault getters just stay `None`/false.
+- Older SDK versions paired with new robot firmware log one
+  `unknown upload head` line per second on stderr; upgrading the SDK removes
+  the noise.
+
 ## [1.0.9] - 2026-09-08
 
 ### Added
@@ -213,7 +283,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial Linux x86_64 and aarch64 shared libraries, CMake configuration, and
   C++ examples.
 
-[Unreleased]: https://github.com/mirrormerobotics/bpx_sdk_open/compare/v1.0.9...HEAD
+[Unreleased]: https://github.com/mirrormerobotics/bpx_sdk_open/compare/v1.0.10-rc.1...HEAD
+[1.0.10-rc.1]: https://github.com/mirrormerobotics/bpx_sdk_open/compare/v1.0.9...v1.0.10-rc.1
 [1.0.9]: https://github.com/mirrormerobotics/bpx_sdk_open/compare/v1.0.8...v1.0.9
 [1.0.8]: https://github.com/mirrormerobotics/bpx_sdk_open/compare/v1.0.7...v1.0.8
 [1.0.7]: https://github.com/mirrormerobotics/bpx_sdk_open/compare/v1.0.6...v1.0.7

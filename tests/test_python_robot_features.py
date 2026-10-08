@@ -177,6 +177,92 @@ class RobotFeaturesTest(unittest.TestCase):
                                   (flags & 1, (flags >> 1) & 1))
                 sdk.disconnect()
 
+    def test_charging_sit_down_command_and_feedback(self):
+        motion = bpx_sdk.MotionLevelControl()
+        self.assertIs(motion.setChargingSitDown(), False)
+        self.configure_peer()
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as receiver:
+            receiver.bind(('127.0.0.1', 9527))
+            receiver.settimeout(2)
+            sdk, port = self.connect(bpx_sdk.MotionLevelControl)
+            self.wait(lambda: sdk.setVelocity(0.3, 0.1, 0.2))
+            self.assertIs(sdk.setChargingSitDown(), True)
+            deadline = time.monotonic() + 3
+            while True:
+                self.assertLess(time.monotonic(), deadline)
+                packet = receiver.recv(1024)
+                if len(packet) == 56 and packet[4] == 24:
+                    break
+            self.assertEqual(packet[5], 0)  # Walk gait
+            self.assertEqual(struct.unpack_from('<6f', packet, 8), (0.0,) * 6)
+            self.assertIsNone(sdk.getCurrentMotionState())
+            self.assertIsNone(sdk.getLastMotionState())
+            for timestamp, current, previous in [(1, 24, 6), (2, 2, 24)]:
+                payload = bytearray(20)
+                payload[0], payload[2] = current, previous
+                receiver.sendto(struct.pack('<HHI', 0x10, 20, timestamp) + payload,
+                                ('127.0.0.1', port))
+                self.wait(lambda: sdk.getMotionStateTimestamp() == timestamp)
+                self.assertEqual(sdk.getCurrentMotionState(), current)
+                self.assertEqual(sdk.getLastMotionState(), previous)
+                self.assertEqual(bpx_sdk.MotionState(24).name, 'ChargingSitDown')
+            sdk.disconnect()
+            self.assertIs(sdk.setChargingSitDown(), False)
+
+    def test_pose_tracking_and_four_axis_input(self):
+        axes = (0.2, -0.3, 1.0, -1.0)
+        expected_axes = (0.2, -0.3, -1.0, 1.0, 0.0, 0.0)
+        disconnected = bpx_sdk.MotionLevelControl()
+        self.assertIs(disconnected.setPoseTracking(), False)
+        self.assertIs(disconnected.setPose(*axes), False)
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as receiver:
+            receiver.bind(('127.0.0.1', 9527))
+            receiver.settimeout(2)
+            sdk, _ = self.connect(bpx_sdk.MotionLevelControl)
+            sdk.setVelocityControlFlag(True)
+            self.wait(lambda: sdk.setVelocity(0.3, 0.1, 0.2))
+            self.assertIs(sdk.setPose(*axes), False)
+
+            def receive_matching(predicate):
+                deadline = time.monotonic() + 3
+                while time.monotonic() < deadline:
+                    packet = receiver.recv(1024)
+                    self.assertEqual(len(packet), 56)
+                    if predicate(packet):
+                        return packet
+                self.fail('expected pose packet did not arrive')
+
+            self.assertIs(sdk.setPoseTracking(), True)
+            packet = receive_matching(lambda p: p[5] == 7)
+            self.assertEqual((packet[4], packet[32], packet[34]), (6, 0, 0))
+            self.assertEqual(struct.unpack_from('<6f', packet, 8), (0.0,) * 6)
+            selected_version = struct.unpack_from('<I', packet, 40)[0]
+            self.assertIs(sdk.setPose(*axes), True)
+            packet = receive_matching(lambda p: p[5] == 7 and
+                struct.unpack_from('<I', p, 40)[0] != selected_version)
+            self.assertEqual(packet[32], 0)
+            for actual, expected in zip(struct.unpack_from('<6f', packet, 8), expected_axes):
+                self.assertAlmostEqual(actual, expected)
+            version = struct.unpack_from('<I', packet, 40)[0]
+            for index in range(4):
+                for invalid in (1.1, -1.1, float('nan'), float('inf'), -float('inf')):
+                    bad_axes = list(axes)
+                    bad_axes[index] = invalid
+                    self.assertIs(sdk.setPose(*bad_axes), False)
+            packet = receive_matching(lambda p: p[5] == 7)
+            self.assertEqual(struct.unpack_from('<I', packet, 40)[0], version)
+            for invalid in ((), (0, 0, 0), (0,) * 5, (0,) * 6, ([0] * 6,),
+                            (None, 0, 0, 0), (0, 'bad', 0, 0)):
+                with self.assertRaises(TypeError):
+                    sdk.setPose(*invalid)
+            sdk.setWalk()
+            packet = receive_matching(lambda p: p[5] == 0)
+            self.assertEqual(packet[32], 1)
+            self.assertEqual(struct.unpack_from('<6f', packet, 8), (0.0,) * 6)
+            self.assertIs(sdk.setPose(*axes), False)
+            sdk.disconnect()
+            self.assertIs(sdk.setPoseTracking(), False)
+
     def test_jump_commands_and_repeated_requests(self):
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as receiver:
             receiver.bind(('127.0.0.1', 9527))
@@ -205,9 +291,10 @@ class RobotFeaturesTest(unittest.TestCase):
         self.assertEqual([int(x) for x in bpx_sdk.RobotModel], [0, 1, 2, 3])
         self.assertEqual([int(x) for x in bpx_sdk.ControlMode], [0, 1, 2])
         self.assertEqual(bpx_sdk.MotionGait.Jump, 12)
+        self.assertEqual(bpx_sdk.MotionState.ChargingSitDown, 24)
         sdk = bpx_sdk.MotionLevelControl()
         for name in ('getRobotSerialNumber', 'getRobotModel', 'getControlMode', 'getChargerIn1', 'getChargerIn2', 'setUpJump', 'setFrontJump',
-                     'setBackJump', 'setLeftJump', 'setRightJump'):
+                     'setBackJump', 'setLeftJump', 'setRightJump', 'setChargingSitDown'):
             with self.assertRaises(TypeError):
                 getattr(sdk, name)(1)
 

@@ -114,7 +114,7 @@ void printUsage(const char* program) {
         << "  --listen-port PORT         Client listen port (default: " << kDefaultListenPort << ")\n"
         << "  -h, --help                 Show this help\n"
         << "\n"
-        << "Commands: zero, stand, sit, damping, stop, status,\n"
+        << "Commands: zero, stand, sit, charging-sit, damping, stop, status,\n"
         << "          velocity X Y YAW, velocity-control on|off,\n"
         << "          gait walk|running|bipedal|inv_bipedal|pronk|pace|bound|left_flip|right_flip,\n"
         << "          jump up|front|back|left|right, quit\n";
@@ -306,6 +306,8 @@ const char* motionStateName(uint8_t state) {
             return "Passive";
         case bpx_sdk::MotionState::SitDown:
             return "SitDown";
+        case bpx_sdk::MotionState::ChargingSitDown:
+            return "ChargingSitDown";
         case bpx_sdk::MotionState::Motion:
             return "Motion";
     }
@@ -351,6 +353,9 @@ std::string statusLineUnlocked(bpx_sdk::MotionLevelControl& motion) {
     uint8_t state = 0, gait = 0;
     output << " motion_state=";
     if (motion.getCurrentMotionState(&state)) output << unsigned(state) << "(" << motionStateName(state) << ")";
+    else output << "<unavailable>";
+    output << " last_motion_state=";
+    if (motion.getLastMotionState(&state)) output << unsigned(state) << "(" << motionStateName(state) << ")";
     else output << "<unavailable>";
     output << " gait=";
     if (motion.getCurrentGait(&gait)) output << unsigned(gait) << "(" << motionGaitName(gait) << ")";
@@ -406,7 +411,7 @@ bool executeCommand(bpx_sdk::MotionLevelControl& motion,
 
     const std::string& command = words[0];
     if (command == "help") {
-        *response = "OK commands: zero, stand, sit, damping, stop, status, velocity X Y YAW, velocity-control on|off, gait walk|running|bipedal|inv_bipedal|pronk|pace|bound|left_flip|right_flip, jump up|front|back|left|right, help, quit|shutdown";
+        *response = "OK commands: zero, stand, sit, charging-sit, damping, stop, status, velocity X Y YAW, velocity-control on|off, gait walk|running|bipedal|inv_bipedal|pronk|pace|bound|left_flip|right_flip, jump up|front|back|left|right, help, quit|shutdown";
         return false;
     }
 
@@ -422,6 +427,11 @@ bool executeCommand(bpx_sdk::MotionLevelControl& motion,
     }
     if (command == "sit") {
         *response = motion.setSitDown() ? "OK sit command sent" : "ERR sit command failed";
+        return false;
+    }
+    if (command == "charging-sit") {
+        *response = motion.setChargingSitDown()
+            ? "OK charging sit-down command sent" : "ERR charging sit-down command failed";
         return false;
     }
     if (command == "damping") {

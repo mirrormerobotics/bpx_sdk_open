@@ -27,6 +27,7 @@ enum class MotionState : uint8_t {
     Passive = 2,
     SitDown = 3,
     Motion = 6,
+    ChargingSitDown = 24,  // Charging sit-down in progress; also reported as last state after exit.
 };
 
 enum class MotionGait : uint8_t {

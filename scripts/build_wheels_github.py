@@ -29,7 +29,10 @@ ARTIFACTS = {
 # https://docs.github.com/en/billing/concepts/product-billing/github-actions
 PLAN_MINUTES = {"free": 2000, "pro": 3000, "team": 3000}
 # Historical assumptions only; these multipliers are absent from current docs.
-HISTORICAL_MULTIPLIERS = {"actions_linux": 1, "actions_windows": 2, "actions_macos": 10}
+# actions_linux_arm is counted like Linux x64 (conservative; per-minute pricing
+# suggests it is slightly cheaper than x64).
+HISTORICAL_MULTIPLIERS = {"actions_linux": 1, "actions_linux_arm": 1,
+                          "actions_windows": 2, "actions_macos": 10}
 STATUS_LABELS = {
     "queued": "排队中", "in_progress": "运行中", "completed": "已完成",
     "requested": "已请求", "waiting": "等待中", "pending": "待处理",
@@ -80,18 +83,22 @@ def show_quota_estimate(items, plan):
         print("无法估算剩余分钟：未查询到构建分钟记录。", flush=True)
         return
     used = 0.0
+    unknown = []
     for item in minutes:
         multiplier = HISTORICAL_MULTIPLIERS.get(item["sku"])
         quantity = float(item["grossQuantity"])
         if multiplier is None or not math.isfinite(quantity) or quantity < 0:
-            print("无法估算剩余分钟：不支持的 runner SKU 或用量数值（{}）。".format(
-                item["sku"]), flush=True)
-            return
+            unknown.append(item["sku"])
+            continue
         used += quantity * multiplier
+    if unknown:
+        print("警告：以下 runner SKU 的倍率未知，未计入估算（已用量可能被低估）：{}。".format(
+            "、".join(sorted(set(unknown)))), flush=True)
     remaining = max(0, allowance - used)
     print("仅供估算：已用约 {:g} / {:g} 分钟；剩余约 {:g} 分钟（{:.1f}%）。".format(
         used, allowance, remaining, remaining / allowance * 100), flush=True)
-    print("估算依据：历史倍率 Linux ×1、Windows ×2、macOS ×10；将所有已报告的构建分钟计入额度。"
+    print("估算依据：历史倍率 Linux ×1、Linux ARM64 ×1、Windows ×2、macOS ×10；"
+          "将所有已报告的构建分钟计入额度。"
           "当前规则、公共仓库用量和数据延迟可能影响结果。此数值不是 GitHub 确认的余额。", flush=True)
 
 

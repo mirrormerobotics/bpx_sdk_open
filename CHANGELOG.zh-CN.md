@@ -9,6 +9,62 @@
 
 ## [未发布]
 
+## [1.0.10-rc.1] - 2026-10-08
+
+GitHub 预发布 rc.1；SDK 和 Python 包版本保持 `1.0.10`。
+复用当前 SDK 快照中的 28 个 wheel，文件内容保持不变。
+
+### 新增
+
+- C++、Python 新增 `setChargingSitDown()`，同步 Python 类型提示和用于运动状态反馈的
+  `MotionState.ChargingSitDown = 24` 枚举。
+- C++、Python server/client 示例新增 `charging-sit` 命令，状态查询及遥测显示当前和上一运动状态。
+- 增加 Python 指令编码、状态反馈和 C++/Python 全部 server/client 组合的回环测试。
+- 为 BPX/BPX-Pro 在 C++ 和 Python 中新增原地模式接口 `setPoseTracking()`
+  和 `setPose(x, y, z, r)`，并补充 Python 类型提示。姿态输入为 `[-1, 1]`
+  范围内的有限归一化值，`r` 对应 yaw，协议中未开放的两个通道保持为零。
+- 新增使用公共连接参数的 C++ 和 Python 原地模式示例：自动站立并等待运动状态及
+  步态反馈，依次执行 `x → y → z → r`，完成后自动趴下并等待完成反馈。
+  每轴先在 `-1000` 保持 1 秒，再用 3 秒渐变至 `1000`，保持 1 秒后归零，
+  归零后等待 1 秒；输出包含全部四轴数值。
+- 新增回环测试，覆盖姿态输入校验、协议通道映射、步态切换，以及示例动作顺序和时序。
+- C++ 状态查询新增 `getHardEstop()` / `getHardEstopValue()`，Python 各状态类新增
+  `getHardEstop()`（含类型提示）：硬急停开关按下（所有关节掉电）时返回 1，释放
+  返回 0，1 Hz 反馈到达前返回 `None`/false。该状态由 1 Hz 状态标志位 bit 2 携带，
+  需要机器人固件支持发布。
+- C++ 状态查询新增 `getFaultState()` / `getFaultStateValue()`，全部 Python
+  状态类新增 `getFaultState()`（含 `FaultEntry` / `FaultState` 类型提示）：
+  返回专用 1 Hz UDP 通道（head `0x00F0`）的全量活动故障快照，最多 32 条
+  `{code, occurred_t_ms}` 条目及 `truncated` 标志。条目按 severity 降序排列，
+  `entries[0]` 即当前最高优先级故障；机器人无故障时仍以 `entry_count=0`
+  心跳包持续上报。返回 `None`/false 仅表示尚未收到故障包（例如旧固件）。
+  custom_fields 不进该通道，仍由机器人本机 IPC 通道承载。
+- 新增 `getFaultTimestamp()` / `getFaultTimestampValue()`：最近一帧故障快照
+  的接收时间（单调时钟，与 Unix epoch 毫秒的 `occurred_t_ms` 不可互减）。
+- 新增公共头 `fault_code.h`：64 位故障码位域说明（version / separator /
+  severity / module / sub-module / sub-code）、`DecodeFault*()` 解码辅助与
+  `FaultSeverity` / `FaultModule` 枚举，应用无需内部头文件即可渲染故障码。
+- C++ 与 Python 反馈示例增加活动故障摘要输出
+  （`faults=<count>[+truncated] top=0x…`）。
+
+### 变更
+
+- 原生 SDK 头文件及动态库更新至 1.0.10。
+- 更新公开头文件及配套 Linux x86_64/aarch64、Windows x86_64 和 macOS arm64
+  SDK 库，以支持原地模式。
+- 补充姿态输入范围、步态反馈要求，以及退出原地模式和断线时的归零行为说明。
+- 未知 UDP 包头（head）的 stderr 日志改为按 head 值去重，每个值只打印一次，
+  后续新增通道不再刷屏。
+- 机器人侧 `FaultCodeManager` 线程安全化，快照排序确定化（severity 降序、
+  并列取打包码最小），IPC 通道的 `primary_code` 也随之稳定。
+
+### 兼容性
+
+- 需要发布了故障通道的机器人固件。旧固件不受影响，故障 getter 恒为
+  `None`/false。
+- 旧版 SDK 配新固件时，stderr 每秒打印一行 `unknown upload head`；升级
+  SDK 后噪音消除。
+
 ## [1.0.9] - 2026-09-08
 
 ### 新增
@@ -189,7 +245,8 @@
 - 首次提供用于机器人状态查询、运动级控制和关节级控制的 C++ SDK。
 - 首次提供 Linux x86_64 和 aarch64 共享库、CMake 配置及 C++ 示例。
 
-[未发布]: https://github.com/mirrormerobotics/bpx_sdk_open/compare/v1.0.9...HEAD
+[未发布]: https://github.com/mirrormerobotics/bpx_sdk_open/compare/v1.0.10-rc.1...HEAD
+[1.0.10-rc.1]: https://github.com/mirrormerobotics/bpx_sdk_open/compare/v1.0.9...v1.0.10-rc.1
 [1.0.9]: https://github.com/mirrormerobotics/bpx_sdk_open/compare/v1.0.8...v1.0.9
 [1.0.8]: https://github.com/mirrormerobotics/bpx_sdk_open/compare/v1.0.7...v1.0.8
 [1.0.7]: https://github.com/mirrormerobotics/bpx_sdk_open/compare/v1.0.6...v1.0.7

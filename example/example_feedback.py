@@ -22,8 +22,18 @@ def format_power_state(robot):
     current = robot.getBatteryCurrent()
     in1 = robot.getChargerIn1()
     in2 = robot.getChargerIn2()
+    estop = robot.getHardEstop()
+    faults = robot.getFaultState()
     level_text = f"{level}%" if level is not None else "<unavailable>"
     current_text = f"{current:.3f}" if current is not None else "<unavailable>"
+    if faults is None:
+        fault_text = "<unavailable>"
+    else:
+        fault_text = f"{faults['entry_count']}{'+' if faults['truncated'] else ''}"
+        if faults["entries"]:
+            fault_text += f" top=0x{faults['entries'][0]['code']:x}"
     return (f"battery_level={level_text} battery_current={current_text} "
             f"charger_in1={in1 if in1 is not None else '<unavailable>'} "
-            f"charger_in2={in2 if in2 is not None else '<unavailable>'}")
+            f"charger_in2={in2 if in2 is not None else '<unavailable>'} "
+            f"hard_estop={estop if estop is not None else '<unavailable>'} "
+            f"faults={fault_text}")

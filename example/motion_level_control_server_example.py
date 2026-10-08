@@ -37,7 +37,7 @@ def parse_args():
     parser = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=(
-            "Commands: zero, stand, sit, damping, stop, status,\n"
+            "Commands: zero, stand, sit, charging-sit, damping, stop, status,\n"
             "          velocity X Y YAW, velocity-control on|off,\n"
             "          gait walk|running|bipedal|inv_bipedal|pronk|pace|bound|left_flip|right_flip,\n"
             "          jump up|front|back|left|right, quit"
@@ -74,6 +74,7 @@ def motion_gait_name(value):
 
 def status_line(motion):
     state = motion.getCurrentMotionState()
+    last_state = motion.getLastMotionState()
     gait = motion.getCurrentGait()
     velocity = motion.getMaxVelocity()
     sn = motion.getRobotSerialNumber()
@@ -85,6 +86,7 @@ def status_line(motion):
         f"model={model_name if model is not None else '<unavailable>'} "
         f"control_mode={format_control_mode(motion)} "
         f"motion_state={str(state) + '(' + motion_state_name(state) + ')' if state is not None else '<unavailable>'} "
+        f"last_motion_state={str(last_state) + '(' + motion_state_name(last_state) + ')' if last_state is not None else '<unavailable>'} "
         f"gait={str(gait) + '(' + motion_gait_name(gait) + ')' if gait is not None else '<unavailable>'} "
         f"max_vel={velocity if velocity is not None else '<unavailable>'} "
         f"{format_power_state(motion)}"
@@ -108,7 +110,7 @@ def execute_command(motion, sdk_lock, line):
     command = words[0]
     if command == "help":
         return (
-            "OK commands: zero, stand, sit, damping, stop, status, "
+            "OK commands: zero, stand, sit, charging-sit, damping, stop, status, "
             "velocity X Y YAW, velocity-control on|off, gait walk|running|bipedal|inv_bipedal|pronk|pace|bound|left_flip|right_flip, jump up|front|back|left|right, help, quit|shutdown",
             False,
         )
@@ -126,6 +128,9 @@ def execute_motion_command(motion, words):
         return ("OK stand command sent" if motion.setStandUp() else "ERR stand command failed"), False
     if command == "sit":
         return ("OK sit command sent" if motion.setSitDown() else "ERR sit command failed"), False
+    if command == "charging-sit":
+        return ("OK charging sit-down command sent" if motion.setChargingSitDown()
+                else "ERR charging sit-down command failed"), False
     if command == "damping":
         return ("OK damping command sent" if motion.setDamping() else "ERR damping command failed"), False
     if command == "stop":
