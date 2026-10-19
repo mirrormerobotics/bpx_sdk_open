@@ -114,7 +114,7 @@ void printUsage(const char* program) {
         << "  --listen-port PORT         Client listen port (default: " << kDefaultListenPort << ")\n"
         << "  -h, --help                 Show this help\n"
         << "\n"
-        << "Commands: zero, stand, sit, charging-sit, damping, stop, status,\n"
+        << "Commands: zero, stand, tumbler, sit, charging-sit, damping, stop, status,\n"
         << "          velocity X Y YAW, velocity-control on|off,\n"
         << "          gait walk|running|bipedal|inv_bipedal|pronk|pace|bound|left_flip|right_flip,\n"
         << "          jump up|front|back|left|right, quit\n";
@@ -330,6 +330,8 @@ const char* motionGaitName(uint8_t gait) {
             return "PoseTracking";
         case bpx_sdk::MotionGait::Running:
             return "Running";
+        case bpx_sdk::MotionGait::Tumbler:
+            return "Tumbler";
     }
     return "Unknown";
 }
@@ -411,7 +413,7 @@ bool executeCommand(bpx_sdk::MotionLevelControl& motion,
 
     const std::string& command = words[0];
     if (command == "help") {
-        *response = "OK commands: zero, stand, sit, charging-sit, damping, stop, status, velocity X Y YAW, velocity-control on|off, gait walk|running|bipedal|inv_bipedal|pronk|pace|bound|left_flip|right_flip, jump up|front|back|left|right, help, quit|shutdown";
+        *response = "OK commands: zero, stand, tumbler, sit, charging-sit, damping, stop, status, velocity X Y YAW, velocity-control on|off, gait walk|running|bipedal|inv_bipedal|pronk|pace|bound|left_flip|right_flip, jump up|front|back|left|right, help, quit|shutdown";
         return false;
     }
 
@@ -423,6 +425,10 @@ bool executeCommand(bpx_sdk::MotionLevelControl& motion,
     }
     if (command == "stand") {
         *response = motion.setStandUp() ? "OK stand command sent" : "ERR stand command failed";
+        return false;
+    }
+    if (command == "tumbler") {
+        *response = motion.setTumbler() ? "OK tumbler command sent" : "ERR tumbler command failed";
         return false;
     }
     if (command == "sit") {

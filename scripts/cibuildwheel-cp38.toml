@@ -1,0 +1,22 @@
+# Legacy CPython 3.8 wheel builds. cibuildwheel 4.x dropped Python 3.8
+# support, so scripts/build_wheels.py runs this configuration with the
+# final 3.x release (cibuildwheel 3.4.1). Keep the platform policy in
+# sync with the [tool.cibuildwheel] table in pyproject.toml.
+
+[tool.cibuildwheel]
+build = "cp38-*"
+skip = "*-musllinux*"
+test-command = "python {project}/testcase/python_api_smoke_test.py"
+
+[tool.cibuildwheel.linux]
+archs = ["x86_64", "aarch64"]
+manylinux-x86_64-image = "manylinux_2_28"
+manylinux-aarch64-image = "manylinux_2_28"
+
+[tool.cibuildwheel.windows]
+archs = ["AMD64"]
+repair-wheel-command = ""
+
+[tool.cibuildwheel.macos]
+archs = ["arm64"]
+environment = { BPX_SDK_ARCH = "aarch64", MACOSX_DEPLOYMENT_TARGET = "11.0" }

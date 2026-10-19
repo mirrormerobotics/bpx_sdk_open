@@ -9,10 +9,26 @@
 
 ## [未发布]
 
-## [1.0.10-rc.1] - 2026-10-08
+## [1.0.11] - 2026-10-13
 
-GitHub 预发布 rc.1；SDK 和 Python 包版本保持 `1.0.10`。
-复用当前 SDK 快照中的 28 个 wheel，文件内容保持不变。
+### 新增
+
+- C++、Python 新增 `setTumbler()`（含 Python 类型提示）及 `MotionGait.Tumbler = 11`，
+  用于 BPX/BPX-Pro 在躺倒（LyingDown）状态下请求倒地爬起；每次调用发起一次恢复请求，
+  周期重发不会重复触发。
+- C++、Python server/client 示例新增 `tumbler` 命令，C++ server 状态行显示
+  Tumbler 步态名。
+- 新增回环测试，覆盖 tumbler 指令编码和 C++/Python 全部 server/client 组合。
+- Linux、Windows、macOS 新增 CPython 3.15 wheels。CPython 3.8 wheels 通过独立的
+  cibuildwheel 3.4.1 旧工具链继续提供（cibuildwheel 4.x 已放弃 Python 3.8）。
+
+### 修复
+
+- Windows wheel 构建关闭默认的 delvewheel 修复步骤：wheel 已通过
+  `bpx_sdk/lib` 内置 `bpx_sdk_x86_64.dll` 并由 `os.add_dll_directory` 加载，
+  cibuildwheel 4.x 默认启用的 delvewheel 找不到该 DLL，会导致构建失败。
+
+## [1.0.10] - 2026-09-11
 
 ### 新增
 
@@ -245,8 +261,9 @@ GitHub 预发布 rc.1；SDK 和 Python 包版本保持 `1.0.10`。
 - 首次提供用于机器人状态查询、运动级控制和关节级控制的 C++ SDK。
 - 首次提供 Linux x86_64 和 aarch64 共享库、CMake 配置及 C++ 示例。
 
-[未发布]: https://github.com/mirrormerobotics/bpx_sdk_open/compare/v1.0.10-rc.1...HEAD
-[1.0.10-rc.1]: https://github.com/mirrormerobotics/bpx_sdk_open/compare/v1.0.9...v1.0.10-rc.1
+[未发布]: https://github.com/mirrormerobotics/bpx_sdk_open/compare/v1.0.11...HEAD
+[1.0.11]: https://github.com/mirrormerobotics/bpx_sdk_open/compare/v1.0.10...v1.0.11
+[1.0.10]: https://github.com/mirrormerobotics/bpx_sdk_open/compare/v1.0.9...v1.0.10
 [1.0.9]: https://github.com/mirrormerobotics/bpx_sdk_open/compare/v1.0.8...v1.0.9
 [1.0.8]: https://github.com/mirrormerobotics/bpx_sdk_open/compare/v1.0.7...v1.0.8
 [1.0.7]: https://github.com/mirrormerobotics/bpx_sdk_open/compare/v1.0.6...v1.0.7

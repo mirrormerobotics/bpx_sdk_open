@@ -24,6 +24,7 @@ def parse_args():
             "  help                         List all commands and gait/jump choices\n"
             "  zero                         Send the zero-position flag\n"
             "  stand                        Stand up\n"
+            "  tumbler                      Request self-righting recovery while lying down\n"
             "  sit                          Sit down\n"
             "  charging-sit                 Request charging sit-down\n"
             "  damping                      Enter damping mode\n"

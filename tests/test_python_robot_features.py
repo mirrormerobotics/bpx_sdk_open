@@ -263,6 +263,36 @@ class RobotFeaturesTest(unittest.TestCase):
             sdk.disconnect()
             self.assertIs(sdk.setPoseTracking(), False)
 
+    def test_tumbler_self_righting_request(self):
+        disconnected = bpx_sdk.MotionLevelControl()
+        self.assertIs(disconnected.setTumbler(), False)
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as receiver:
+            receiver.bind(('127.0.0.1', 9527))
+            receiver.settimeout(2)
+            sdk, _ = self.connect(bpx_sdk.MotionLevelControl)
+            self.wait(lambda: sdk.setVelocity(0, 0, 0))
+            self.assertIs(sdk.setTumbler(), True)
+            deadline = time.monotonic() + 3
+            while True:
+                self.assertLess(time.monotonic(), deadline)
+                packet = receiver.recv(1024)
+                self.assertEqual(len(packet), 56)
+                if packet[5] == 11:
+                    break
+            self.assertEqual(packet[4], 6)  # Motion state
+            self.assertEqual(struct.unpack_from('b', packet, 34)[0], 0)
+            self.assertEqual(struct.unpack_from('<6f', packet, 8), (0.0,) * 6)
+            version = struct.unpack_from('<I', packet, 40)[0]
+            self.assertIs(sdk.setTumbler(), True)
+            deadline = time.monotonic() + 3
+            while True:
+                self.assertLess(time.monotonic(), deadline)
+                packet = receiver.recv(1024)
+                if packet[5] == 11 and struct.unpack_from('<I', packet, 40)[0] != version:
+                    break
+            sdk.disconnect()
+            self.assertIs(sdk.setTumbler(), False)
+
     def test_jump_commands_and_repeated_requests(self):
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as receiver:
             receiver.bind(('127.0.0.1', 9527))
@@ -290,11 +320,12 @@ class RobotFeaturesTest(unittest.TestCase):
     def test_enum_values_and_argument_validation(self):
         self.assertEqual([int(x) for x in bpx_sdk.RobotModel], [0, 1, 2, 3])
         self.assertEqual([int(x) for x in bpx_sdk.ControlMode], [0, 1, 2])
+        self.assertEqual(bpx_sdk.MotionGait.Tumbler, 11)
         self.assertEqual(bpx_sdk.MotionGait.Jump, 12)
         self.assertEqual(bpx_sdk.MotionState.ChargingSitDown, 24)
         sdk = bpx_sdk.MotionLevelControl()
         for name in ('getRobotSerialNumber', 'getRobotModel', 'getControlMode', 'getChargerIn1', 'getChargerIn2', 'setUpJump', 'setFrontJump',
-                     'setBackJump', 'setLeftJump', 'setRightJump', 'setChargingSitDown'):
+                     'setBackJump', 'setLeftJump', 'setRightJump', 'setChargingSitDown', 'setTumbler'):
             with self.assertRaises(TypeError):
                 getattr(sdk, name)(1)
 

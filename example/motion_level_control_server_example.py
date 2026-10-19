@@ -37,7 +37,7 @@ def parse_args():
     parser = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=(
-            "Commands: zero, stand, sit, charging-sit, damping, stop, status,\n"
+            "Commands: zero, stand, tumbler, sit, charging-sit, damping, stop, status,\n"
             "          velocity X Y YAW, velocity-control on|off,\n"
             "          gait walk|running|bipedal|inv_bipedal|pronk|pace|bound|left_flip|right_flip,\n"
             "          jump up|front|back|left|right, quit"
@@ -110,7 +110,7 @@ def execute_command(motion, sdk_lock, line):
     command = words[0]
     if command == "help":
         return (
-            "OK commands: zero, stand, sit, charging-sit, damping, stop, status, "
+            "OK commands: zero, stand, tumbler, sit, charging-sit, damping, stop, status, "
             "velocity X Y YAW, velocity-control on|off, gait walk|running|bipedal|inv_bipedal|pronk|pace|bound|left_flip|right_flip, jump up|front|back|left|right, help, quit|shutdown",
             False,
         )
@@ -126,6 +126,8 @@ def execute_motion_command(motion, words):
         return "OK zero-position flag sent", False
     if command == "stand":
         return ("OK stand command sent" if motion.setStandUp() else "ERR stand command failed"), False
+    if command == "tumbler":
+        return ("OK tumbler command sent" if motion.setTumbler() else "ERR tumbler command failed"), False
     if command == "sit":
         return ("OK sit command sent" if motion.setSitDown() else "ERR sit command failed"), False
     if command == "charging-sit":

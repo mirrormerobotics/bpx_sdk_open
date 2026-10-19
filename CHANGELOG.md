@@ -9,10 +9,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [1.0.10-rc.1] - 2026-10-08
+## [1.0.11] - 2026-10-13
 
-GitHub prerelease rc.1; SDK and Python package versions remain `1.0.10`.
-The 28 bundled wheels are reused unchanged from the current SDK snapshot.
+### Added
+
+- Add `setTumbler()` to C++ and Python (with Python type hints) and
+  `MotionGait.Tumbler = 11` for the BPX/BPX-Pro self-righting request from
+  LyingDown; each call requests recovery, and periodic resends do not
+  retrigger.
+- Add `tumbler` to both C++/Python server/client examples and report the
+  Tumbler gait name in the C++ status line.
+- Add loopback coverage for the tumbler command encoding and for all
+  C++/Python server/client combinations.
+- Add CPython 3.15 wheels on Linux, Windows, and macOS. CPython 3.8 wheels
+  remain available through a legacy cibuildwheel 3.4.1 pass, because
+  cibuildwheel 4.x dropped Python 3.8 support.
+
+### Fixed
+
+- Disable the default delvewheel repair step in Windows wheel builds. The
+  wheel already bundles `bpx_sdk_x86_64.dll` under `bpx_sdk/lib` and loads it
+  via `os.add_dll_directory`; the delvewheel default introduced in
+  cibuildwheel 4.x fails to locate the DLL and breaks the build.
+
+## [1.0.10] - 2026-09-11
 
 ### Added
 
@@ -283,8 +303,9 @@ The 28 bundled wheels are reused unchanged from the current SDK snapshot.
 - Initial Linux x86_64 and aarch64 shared libraries, CMake configuration, and
   C++ examples.
 
-[Unreleased]: https://github.com/mirrormerobotics/bpx_sdk_open/compare/v1.0.10-rc.1...HEAD
-[1.0.10-rc.1]: https://github.com/mirrormerobotics/bpx_sdk_open/compare/v1.0.9...v1.0.10-rc.1
+[Unreleased]: https://github.com/mirrormerobotics/bpx_sdk_open/compare/v1.0.11...HEAD
+[1.0.11]: https://github.com/mirrormerobotics/bpx_sdk_open/compare/v1.0.10...v1.0.11
+[1.0.10]: https://github.com/mirrormerobotics/bpx_sdk_open/compare/v1.0.9...v1.0.10
 [1.0.9]: https://github.com/mirrormerobotics/bpx_sdk_open/compare/v1.0.8...v1.0.9
 [1.0.8]: https://github.com/mirrormerobotics/bpx_sdk_open/compare/v1.0.7...v1.0.8
 [1.0.7]: https://github.com/mirrormerobotics/bpx_sdk_open/compare/v1.0.6...v1.0.7

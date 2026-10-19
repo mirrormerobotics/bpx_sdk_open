@@ -65,7 +65,9 @@ class ServerClientExamplesTest(unittest.TestCase):
                                                          text=True, timeout=5)
                             self.assertEqual(help_result.returncode, 0, help_result.stderr)
                             self.assertIn('charging-sit', help_result.stdout)
+                            self.assertIn('tumbler', help_result.stdout)
                             self.assertIn('charging-sit', command(client, 'help').stdout)
+                            self.assertIn('tumbler', command(client, 'help').stdout)
                             deadline = time.monotonic() + 5
                             while True:
                                 result = command(client, 'status')
@@ -100,6 +102,17 @@ class ServerClientExamplesTest(unittest.TestCase):
                                 if len(packet) == 56 and packet[4] == 24:
                                     break
                             self.assertEqual(packet[5], 0)
+                            self.assertEqual(struct.unpack_from('<6f', packet, 8), (0.0,) * 6)
+                            result = command(client, 'tumbler')
+                            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                            self.assertIn('OK tumbler command sent', result.stdout)
+                            deadline = time.monotonic() + 3
+                            while True:
+                                self.assertLess(time.monotonic(), deadline)
+                                packet = udp.recv(1024)
+                                if len(packet) == 56 and packet[5] == 11:
+                                    break
+                            self.assertEqual(packet[4], 6)  # Motion state
                             self.assertEqual(struct.unpack_from('<6f', packet, 8), (0.0,) * 6)
                             for current, previous, expected in [
                                     (24, 6, ('motion_state=24(ChargingSitDown)', 'last_motion_state=6(Motion)')),

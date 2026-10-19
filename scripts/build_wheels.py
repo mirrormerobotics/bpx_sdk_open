@@ -2,12 +2,15 @@
 """Build Python wheel artifacts for the current platform.
 
 Use --cibuildwheel on release builders to build all configured CPython wheels
-for the current OS/architecture policy in pyproject.toml.
+for the current OS/architecture policy in pyproject.toml. CPython 3.8 wheels
+are built in a second pass with a legacy cibuildwheel 3.x install, because
+cibuildwheel 4.x dropped Python 3.8 support; see scripts/cibuildwheel-cp38.toml.
 """
 
 from __future__ import annotations
 
 import argparse
+import fnmatch
 import os
 import re
 import subprocess
@@ -17,7 +20,12 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 PYTHON_ORG_FRAMEWORK = Path("/Library/Frameworks/Python.framework/Versions")
-CIBUILDWHEEL_REQUIREMENT = "cibuildwheel<4"
+CIBUILDWHEEL_REQUIREMENT = "cibuildwheel>=4.3.1,<5"
+LEGACY_CIBUILDWHEEL_REQUIREMENT = "cibuildwheel==3.4.1"
+LEGACY_CIBW_CONFIG = ROOT / "scripts" / "cibuildwheel-cp38.toml"
+LEGACY_VENV_DIR = ROOT / ".venv-cibw38"
+MODERN_CP_TAGS = [f"cp3{minor}-manylinux_x86_64" for minor in range(9, 16)]
+LEGACY_CP38_TAG = ["cp38-manylinux_x86_64"]
 
 
 def run(args: list[str], env: dict[str, str] | None = None) -> None:
@@ -49,6 +57,15 @@ def python_tag(version: str) -> str:
     return f"cp{major}{minor}"
 
 
+def env_selects_any(env: dict[str, str], tags: list[str]) -> bool:
+    build = env.get("CIBW_BUILD")
+    if not build:
+        return True
+    return any(
+        fnmatch.fnmatchcase(tag, token) for token in build.split() for tag in tags
+    )
+
+
 def installed_python_org_versions() -> set[str]:
     if not PYTHON_ORG_FRAMEWORK.exists():
         return set()
@@ -70,8 +87,14 @@ def installed_python_org_versions() -> set[str]:
     return versions
 
 
-def cibuildwheel_env() -> dict[str, str]:
+def cibuildwheel_envs() -> tuple[dict[str, str], dict[str, str] | None]:
+    """Return the modern-pass environment and the legacy cp38-pass environment.
+
+    The legacy environment is None when the cp38 pass should be skipped
+    (local macOS builds without an installed python.org CPython 3.8).
+    """
     env = os.environ.copy()
+    legacy_env = env.copy()
     if (
         sys.platform != "darwin"
         or env.get("CI")
@@ -79,11 +102,11 @@ def cibuildwheel_env() -> dict[str, str]:
         or env.get("CIBW_BUILD")
         or env.get("CIBW_SKIP")
     ):
-        return env
+        return env, legacy_env
 
     configured_versions = configured_cpython_versions()
     if not configured_versions:
-        return env
+        return env, legacy_env
 
     installed_versions = installed_python_org_versions()
     build_versions = [
@@ -115,7 +138,28 @@ def cibuildwheel_env() -> dict[str, str]:
             f"interpreters: {', '.join(missing_versions)}",
             flush=True,
         )
-    return env
+    if "3.8" in installed_versions:
+        legacy_env["CIBW_BUILD"] = "cp38-*"
+        legacy_env.setdefault("CIBW_CACHE_PATH", str(ROOT / ".cibuildwheel-cache"))
+    else:
+        print(
+            "Local macOS cibuildwheel: skipping the legacy CPython 3.8 pass; "
+            "python.org CPython 3.8 is not installed.",
+            flush=True,
+        )
+        legacy_env = None
+    return env, legacy_env
+
+
+def legacy_cibuildwheel_python() -> str:
+    if os.name == "nt":
+        python = LEGACY_VENV_DIR / "Scripts" / "python.exe"
+    else:
+        python = LEGACY_VENV_DIR / "bin" / "python"
+    if not python.exists():
+        run([sys.executable, "-m", "venv", str(LEGACY_VENV_DIR)])
+    run([str(python), "-m", "pip", "install", LEGACY_CIBUILDWHEEL_REQUIREMENT])
+    return str(python)
 
 
 def main() -> int:
@@ -135,12 +179,40 @@ def main() -> int:
     out_dir = str(Path(args.out_dir))
 
     if args.cibuildwheel:
-        env = cibuildwheel_env()
-        run([sys.executable, "-m", "pip", "install", "--upgrade", CIBUILDWHEEL_REQUIREMENT])
-        run(
-            [sys.executable, "-m", "cibuildwheel", "--output-dir", out_dir],
-            env=env,
-        )
+        env, legacy_env = cibuildwheel_envs()
+        if env_selects_any(env, MODERN_CP_TAGS):
+            run([sys.executable, "-m", "pip", "install", "--upgrade", CIBUILDWHEEL_REQUIREMENT])
+            run(
+                [sys.executable, "-m", "cibuildwheel", "--allow-empty", "--output-dir", out_dir],
+                env=env,
+            )
+        else:
+            print(
+                "CIBW_BUILD selects no modern CPython; skipping the main "
+                "cibuildwheel pass.",
+                flush=True,
+            )
+        if legacy_env is not None and env_selects_any(legacy_env, LEGACY_CP38_TAG):
+            legacy_python = legacy_cibuildwheel_python()
+            run(
+                [
+                    legacy_python,
+                    "-m",
+                    "cibuildwheel",
+                    "--allow-empty",
+                    "--config-file",
+                    str(LEGACY_CIBW_CONFIG),
+                    "--output-dir",
+                    out_dir,
+                ],
+                env=legacy_env,
+            )
+        elif legacy_env is not None:
+            print(
+                "CIBW_BUILD selects no CPython 3.8; skipping the legacy "
+                "cibuildwheel pass.",
+                flush=True,
+            )
     else:
         run([sys.executable, "-m", "pip", "install", "--upgrade", "build"])
         run([sys.executable, "-m", "build", "--wheel", "--outdir", out_dir])

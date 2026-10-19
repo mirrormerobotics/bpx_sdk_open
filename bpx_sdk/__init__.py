@@ -85,6 +85,7 @@ class MotionGait(IntEnum):
     WalkPhase = _native.MOTION_GAIT_WALK_PHASE
     PoseTracking = _native.MOTION_GAIT_POSE_TRACKING
     Running = _native.MOTION_GAIT_RUNNING
+    Tumbler = _native.MOTION_GAIT_TUMBLER
     Jump = _native.MOTION_GAIT_JUMP
 
 

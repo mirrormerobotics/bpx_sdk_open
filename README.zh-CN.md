@@ -4,34 +4,34 @@
 
 `bpx_sdk_open` 提供一个轻量级 C++ SDK，用于读取 BPX 机器人状态，并发送运动级或关节级控制指令。
 
-SDK 版本：`1.0.10`
+SDK 版本：`1.0.11`
 
-### 1.0.10 预发布（rc.1）
+### 1.0.11 预发布（rc.1）
 
-当前分支提供 **v1.0.10-rc.1 预发布版**，用于试用验证。原生 SDK、Python 包和
-wheel 版本仍为 `1.0.10`，候选版编号由 GitHub 标签和 Release 标识；稳定分支
+当前分支提供 **v1.0.11-rc.1 预发布版**，用于试用验证。原生 SDK、Python 包和
+wheel 版本均为 `1.0.11`，候选版编号由 GitHub 标签和 Release 标识；稳定分支
 `master` 继续保留 1.0.9。
 
-从[预发布页面](https://github.com/mirrormerobotics/bpx_sdk_open/releases/tag/v1.0.10-rc.1)
-下载与操作系统、架构和 Python 版本匹配的 wheel。附件包括 CPython 3.8–3.14 在
-Linux x86_64/aarch64、Windows AMD64 和 macOS arm64 上的 28 个 wheel，以及
+从[预发布页面](https://github.com/mirrormerobotics/bpx_sdk_open/releases/tag/v1.0.11-rc.1)
+下载与操作系统、架构和 Python 版本匹配的 wheel。附件包括 CPython 3.8–3.15 在
+Linux x86_64/aarch64、Windows AMD64 和 macOS arm64 上的 32 个 wheel，以及
 用于校验的 `SHA256SUMS`。
 
 ```bash
-python3 -m pip install --no-index --find-links /path/to/downloaded --force-reinstall bpx-sdk-open==1.0.10
+python3 -m pip install --no-index --find-links /path/to/downloaded --force-reinstall bpx-sdk-open==1.0.11
 python3 -c "import bpx_sdk; print(bpx_sdk.__version__)"
 ```
 
-请将 `/path/to/downloaded` 替换为存放已下载 wheel 的目录。替换另一个同为 `1.0.10` 的 wheel
+请将 `/path/to/downloaded` 替换为存放已下载 wheel 的目录。替换另一个同为 `1.0.11` 的 wheel
 时使用 `--force-reinstall`。构建 C++ 示例或从源码安装前，请先检出标签
-`v1.0.10-rc.1`。硬急停状态和活动故障通道需要配套机器人固件；收到对应反馈前，
-查询返回 `None`/false，旧固件未发布这些字段时同样如此。本次预发布通过 GitHub 分发。
+`v1.0.11-rc.1`。倒地爬起请求返回 `true` 仅表示请求已发送，完成情况需通过
+步态反馈观察，机器人侧安全检查仍然生效。本次预发布通过 GitHub 分发。
 
-如需远程构建，执行 `python3 scripts/build_wheels_github.py --ref prerelease/1.0.10`。
+如需远程构建，执行 `python3 scripts/build_wheels_github.py --ref prerelease/1.0.11`。
 脚本默认从当前仓库的 `origin` 自动识别目标，下载完成后默认不查询账单；维护者可
 按需添加 `--show-usage`，或使用 `--usage-only` 单独查询。
 
-文档更新日期：`2026-10-08`
+文档更新日期：`2026-10-19`
 
 SDK 提供三种使用模式：
 
@@ -132,6 +132,7 @@ SDK 提供类型安全的运动状态和步态枚举，可用于读取当前/上
 | `WalkPhase`    | `6` |
 | `PoseTracking` | `7` |
 | `Running`      | `8` |
+| `Tumbler` | `11` |
 | `Jump` | `12` |
 
 ### 主步态与子步态
@@ -150,6 +151,7 @@ SDK 提供类型安全的运动状态和步态枚举，可用于读取当前/上
 | `WalkPhase`    | `6`    | `Pronk`       | `-1`    | 直腿跳  |
 | `PoseTracking` | `7`    | —            | —       | 原地扭动 |
 | `Running`      | `8`    | `Run`         | `0`     | 奔跑   |
+| `Tumbler` | `11` | — | — | 倒地爬起 |
 | `Jump` | `12` | `UpJump` | `0` | 向上跳 |
 | `Jump` | `12` | `FrontJump` | `1` | 向前跳 |
 | `Jump` | `12` | `BackJump` | `2` | 向后跳 |
@@ -188,8 +190,9 @@ if (robot_state.getSubGait(&raw_sub_gait)) {
 | `WalkPhase`    | `[1.5, 1.0, 2.0]`                                    |
 | `PoseTracking` | `[0.0, 0.0, 0.0]`                                    |
 | `Running`      | `x: [-1.5, 3.0]`，`y: [-1.0, 1.0]`，`yaw: [-2.0, 2.0]` |
+| `Tumbler` | `[0.0, 0.0, 0.0]` |
 
-`Flip` 不使用行走速度指令。`PoseTracking` 限制的是原地扭动指令，不是机身移动速度。对于 `Walk`、`Bipedal`、`WalkPhase` 和 `Running`，横向速度和偏航角速度会随着 `abs(x)` 增大进一步收缩，因此表中列出的是各轴基础限幅。
+`Flip` 不使用行走速度指令。`Tumbler` 以六轴全零请求倒地爬起，不使用速度指令。`PoseTracking` 限制的是原地扭动指令，不是机身移动速度。对于 `Walk`、`Bipedal`、`WalkPhase` 和 `Running`，横向速度和偏航角速度会随着 `abs(x)` 增大进一步收缩，因此表中列出的是各轴基础限幅。
 
 #### `Walk` 步态起步阈值
 
@@ -381,6 +384,7 @@ if (!motion.connect()) {
 | `setZeroPositionsFlag()`                   | 设置零位置标志，示例程序会在发送正式运动指令前先发送该标志。 |
 | `setWalk()`                                | 切换到普通行走步态。                     |
 | `setRunning()`                             | 切换到跑步步态。                       |
+| `setTumbler()` | 请求 BPX/BPX-Pro 倒地爬起；返回请求是否发送成功。 |
 | `setLeftFlip()`                            | 请求左侧翻动作。                       |
 | `setRightFlip()`                           | 请求右侧翻动作。                       |
 | `setBipedal()`                             | 切换到双足正立步态。                     |
@@ -406,6 +410,11 @@ if (!motion.connect()) {
 `getLastMotionState()` 返回 `ChargingSitDown`。这些字段沿用最高 10 Hz 的运动状态反馈。
 上一状态不是完成标志，阻尼请求或安全保护也可能提前中断动作；充电器是否插入需另读
 `getChargerIn1/2()`，硬急停开关状态见 `getHardEstop()`。
+
+在 BPX/BPX-Pro 处于 `MotionState::LyingDown`（趴下状态）时，调用 `setTumbler()`
+请求倒地爬起。每次调用发送一次恢复请求，内容为六轴全零和子步态 0；SDK 的周期
+重发不会重复触发该请求。返回 `true` 仅表示请求已发送，不代表恢复完成，机器端
+仍会执行安全检查。恢复过程中步态反馈为 `MotionGait::Tumbler`（`11`）。
 
 五种定向跳跃适用于 BPX。连接就绪后，在机器人进入运动模式且速度指令为零时调用。
 每次调用请求一次跳跃。`setPronk()` 用于切换 Pronk 步态。
@@ -767,6 +776,19 @@ if current == bpx_sdk.MotionState.ChargingSitDown:
 print("previous state:", previous)
 ```
 
+Python 1.0.11 新增 `MotionLevelControl.setTumbler() -> bool` 和
+`MotionGait.Tumbler = 11`，用于 BPX/BPX-Pro 在趴下状态（`MotionState.LyingDown`）
+下请求倒地爬起：
+
+```python
+# motion 是已连接的 MotionLevelControl；机器人处于趴下状态。
+sent = motion.setTumbler()
+print("recovery request sent:", sent)
+# 在后续控制循环中轮询反馈。
+if motion.getCurrentGait() == bpx_sdk.MotionGait.Tumbler:
+    print("self-righting in progress")
+```
+
 Python 方法名与 C++ SDK 保持一致。读取类接口成功时返回
 `list`、`dict`、`int` 或 `float`，暂未收到有效数据时返回 `None`。`getLegOdom()` 返回包含 `velocity_body`、`position`、`orientation`、`angular_velocity` 四个列表字段的 dict。关节控制接口接收长度为 12 的 Python 序列，例如：
 
@@ -805,7 +827,7 @@ python3 example/motion_level_control_client_example.py status
 
 `status` 返回连接状态、SN、机型、ControlMode、当前/上一运动状态、步态、最大速度以及电池和充电状态；暂不可用的字段显示 `<unavailable>`。服务端每秒打印带本机毫秒时间戳的状态，`battery_level`、`battery_current`、`charger_in1`、`charger_in2` 和 `hard_estop` 位于同一行。
 
-支持 `zero`、`stand`、`sit`、`charging-sit`、`damping`、`stop`、`velocity X Y YAW`、`velocity-control on|off` 和 `gait NAME`；`jump up|front|back|left|right` 分别对应向上、向前、向后、向左、向右跳跃（BPX）。实际可用动作以机型支持为准。客户端 `-h`/`--help` 可在不连接服务端时查看完整命令；连接后输入 `help` 可查看命令及全部步态、跳跃选项，`quit`（或 `shutdown`）关闭服务端。客户端显示的 `OK` 表示命令已被服务端处理，不表示机器人已完成动作。
+支持 `zero`、`stand`、`tumbler`、`sit`、`charging-sit`、`damping`、`stop`、`velocity X Y YAW`、`velocity-control on|off` 和 `gait NAME`；`jump up|front|back|left|right` 分别对应向上、向前、向后、向左、向右跳跃（BPX）。实际可用动作以机型支持为准。客户端 `-h`/`--help` 可在不连接服务端时查看完整命令；连接后输入 `help` 可查看命令及全部步态、跳跃选项，`quit`（或 `shutdown`）关闭服务端。客户端显示的 `OK` 表示命令已被服务端处理，不表示机器人已完成动作。
 
 两种服务端的 `charging-sit` 命令均调用 `setChargingSitDown()`。执行中查询 `status`
 可见 `motion_state=24(ChargingSitDown)`；退出到阻尼后可见
@@ -817,6 +839,9 @@ python3 example/motion_level_control_client_example.py status
 python3 example/motion_level_control_client_example.py charging-sit
 python3 example/motion_level_control_client_example.py status
 ```
+
+两种服务端的 `tumbler` 命令均调用 `setTumbler()`。在机器人趴下时发送；恢复过程中
+查询 `status` 可见 `gait=11(Tumbler)`。
 
 ## 许可证
 

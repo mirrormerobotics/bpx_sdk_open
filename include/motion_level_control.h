@@ -20,6 +20,10 @@ public:
     void setZeroPositionsFlag();
     void setWalk();
     void setRunning();
+    // BPX/BPX-Pro self-righting request; sends six zero axes and sub-gait 0.
+    // In LyingDown, each call requests recovery; periodic resends do not retrigger.
+    // True means sent, not completed; robot-side safety checks still apply.
+    bool setTumbler();
     // Request pose tracking with all six axes zero. True means sent, not entered;
     // wait for MotionGait::PoseTracking feedback before sending nonzero axes.
     bool setPoseTracking();
@@ -31,12 +35,17 @@ public:
     // invalid input, an unavailable session, another selected gait, or send failure.
     // Uses normalized control independently of setVelocityControlFlag().
     bool setPose(float x, float y, float z, float r);
+    // Jump/flip calls immediately send one zero-axis motion request. Repeated
+    // sends of that request do not create another action. Ordinary velocity,
+    // velocity-control flag and zero-position updates retire Jump/Flip to Walk;
+    // continuous gaits (Running, Bipedal, Pronk/Pace/Bound) stay selected.
+    // Requires an established control session; requests are not completion ACKs.
     void setLeftFlip();
     void setRightFlip();
     // BPX only; BPX-Pro ignores bipedal commands.
     void setBipedal();
     void setInvBipedal();
-    // BPX jump actions; each call requests one jump.
+    // BPX jump actions; each explicit call requests one jump (see flip contract).
     void setUpJump();
     void setFrontJump();
     void setBackJump();

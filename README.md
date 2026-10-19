@@ -4,32 +4,32 @@
 
 `bpx_sdk_open` provides a lightweight C++ SDK for reading BPX robot state and sending motion-level or joint-level control commands.
 
-SDK version: `1.0.10`
+SDK version: `1.0.11`
 
-### 1.0.10 preview (rc.1)
+### 1.0.11 preview (rc.1)
 
-This branch provides the **v1.0.10-rc.1 prerelease** for evaluation. The native SDK,
-Python package, and wheel versions remain `1.0.10`; the candidate identifier is
+This branch provides the **v1.0.11-rc.1 prerelease** for evaluation. The native SDK,
+Python package, and wheel versions are `1.0.11`; the candidate identifier is
 carried by the GitHub tag and Release. The stable `master` branch remains on 1.0.9.
 
 Download the wheel matching your OS, architecture, and Python version from the
-[prerelease](https://github.com/mirrormerobotics/bpx_sdk_open/releases/tag/v1.0.10-rc.1).
-The release includes 28 wheels for CPython 3.8–3.14 across Linux x86_64/aarch64,
+[prerelease](https://github.com/mirrormerobotics/bpx_sdk_open/releases/tag/v1.0.11-rc.1).
+The release includes 32 wheels for CPython 3.8–3.15 across Linux x86_64/aarch64,
 Windows AMD64, and macOS arm64, plus `SHA256SUMS` for verification.
 
 ```bash
-python3 -m pip install --no-index --find-links /path/to/downloaded --force-reinstall bpx-sdk-open==1.0.10
+python3 -m pip install --no-index --find-links /path/to/downloaded --force-reinstall bpx-sdk-open==1.0.11
 python3 -c "import bpx_sdk; print(bpx_sdk.__version__)"
 ```
 
 Replace `/path/to/downloaded` with the directory containing your downloaded wheel. Use `--force-reinstall`
-when replacing another wheel that also reports version `1.0.10`.
-For C++ examples or a source install, check out `v1.0.10-rc.1` before building.
-Hard estop feedback and the active fault channel require matching robot firmware;
-queries return `None`/false until their feedback arrives, including on older firmware
-that does not publish these fields. This prerelease is distributed through GitHub.
+when replacing another wheel that also reports version `1.0.11`.
+For C++ examples or a source install, check out `v1.0.11-rc.1` before building.
+The tumbler self-righting request reports success when sent; completion is observed
+through gait feedback, and robot-side safety checks still apply.
+This prerelease is distributed through GitHub.
 
-Documentation updated: `2026-10-08`
+Documentation updated: `2026-10-19`
 
 The SDK offers three usage modes:
 
@@ -131,6 +131,7 @@ Gait `bpx_sdk::MotionGait`:
 | `WalkPhase`    | `6`       |
 | `PoseTracking` | `7`       |
 | `Running`      | `8`       |
+| `Tumbler` | `11` |
 | `Jump` | `12` |
 
 ### Gaits and Sub-gaits
@@ -149,6 +150,7 @@ For some gaits, the main gait must be interpreted together with the sub-gait ret
 | `WalkPhase`    | `6`            | `Pronk`       | `-1`               | Straight-leg jump |
 | `PoseTracking` | `7`            | —             | —                  | In-place twisting |
 | `Running`      | `8`            | `Run`         | `0`                | Running           |
+| `Tumbler` | `11` | — | — | Self-righting recovery |
 | `Jump` | `12` | `UpJump` | `0` | Upward jump |
 | `Jump` | `12` | `FrontJump` | `1` | Forward jump |
 | `Jump` | `12` | `BackJump` | `2` | Backward jump |
@@ -187,8 +189,9 @@ Velocity commands use `[x, y, yaw]`, where `x` and `y` are body-frame linear vel
 | `WalkPhase`    | `[1.5, 1.0, 2.0]`            |
 | `PoseTracking` | `[0.0, 0.0, 0.0]`            |
 | `Running`      | `x: [-1.5, 3.0]`, `y: [-1.0, 1.0]`, `yaw: [-2.0, 2.0]` |
+| `Tumbler`      | `[0.0, 0.0, 0.0]`            |
 
-`Flip` does not use walking velocity commands. `PoseTracking` limits pose tracking commands instead of body velocity commands. For `Walk`, `Bipedal`, `WalkPhase`, and `Running`, lateral velocity and yaw rate are further reduced as `abs(x)` increases, so the table lists the per-axis base limits.
+`Flip` does not use walking velocity commands. `Tumbler` requests self-righting with six zero axes and does not use velocity commands. `PoseTracking` limits pose tracking commands instead of body velocity commands. For `Walk`, `Bipedal`, `WalkPhase`, and `Running`, lateral velocity and yaw rate are further reduced as `abs(x)` increases, so the table lists the per-axis base limits.
 
 ## State Query Layer
 
@@ -352,6 +355,7 @@ Control APIs:
 | `setZeroPositionsFlag()`                   | Sets the zero-position flag. Example programs send this before formal motion commands. |
 | `setWalk()`                                | Switches to normal walking gait.                                                       |
 | `setRunning()`                             | Switches to running gait.                                                              |
+| `setTumbler()` | Requests BPX/BPX-Pro self-righting recovery while lying down; returns whether the request was sent. |
 | `setLeftFlip()`                            | Requests a left flip.                                                                  |
 | `setRightFlip()`                           | Requests a right flip.                                                                 |
 | `setBipedal()`                             | Switches to bipedal gait.                                                              |
@@ -378,6 +382,13 @@ After entering damping, the current state is `Passive` and `getLastMotionState()
 reports `ChargingSitDown`. These are existing motion-state feedback fields (up to
 10 Hz). Previous state is not a completion flag: a damping request or safety protection
 can also interrupt the action. Charger insertion is reported separately by `getChargerIn1/2()`, and the hard estop switch state by `getHardEstop()`.
+
+Call `setTumbler()` on BPX/BPX-Pro while the robot is in `MotionState::LyingDown`
+to request self-righting recovery. Each call sends one recovery request with six
+zero axes and sub-gait 0; the SDK's periodic resends do not retrigger the
+request. `true` means the request was sent, not that recovery completed, and
+robot-side safety checks still apply. During execution the gait feedback reports
+`MotionGait::Tumbler` (`11`).
 
 The five directional jump APIs are available for BPX. Call them after connection, while the robot
 is in motion mode and commanded velocity is zero. Each call requests one jump.
@@ -692,17 +703,17 @@ The GitHub Actions workflow in `.github/workflows/build-wheels.yml` builds wheel
 With Python 3.8+ and the GitHub CLI installed, and after running `gh auth login`, run:
 
 ```bash
-./scripts/build_wheels_github.py --ref prerelease/1.0.10
+./scripts/build_wheels_github.py --ref prerelease/1.0.11
 ```
 
-On Windows, use `python scripts/build_wheels_github.py --ref prerelease/1.0.10`.
+On Windows, use `python scripts/build_wheels_github.py --ref prerelease/1.0.11`.
 The script triggers `build-wheels.yml`, waits for the four platform jobs to build successfully,
 downloads and extracts the Actions artifacts, and collects the `.whl` files into `wheelhouse/` in
 this repository; the wheels themselves are left unchanged for pip installation.
 Use `--out-dir` to specify a different output directory; quote the path if it contains spaces:
 
 ```bash
-./scripts/build_wheels_github.py --ref prerelease/1.0.10 --out-dir /path/to/wheelhouse
+./scripts/build_wheels_github.py --ref prerelease/1.0.11 --out-dir /path/to/wheelhouse
 ```
 
 By default, the script identifies the GitHub repository from the current repository's `origin`; for
@@ -873,7 +884,7 @@ The server listens on `127.0.0.1:50051` by default. For separate machines, set t
 
 `status` reports connection status, SN, model, ControlMode, current/previous motion state, gait, maximum velocity, battery level/current, and both charger inputs. Missing fields show `<unavailable>`. The server prints status every second with a local timestamp including milliseconds, keeping `battery_level`, `battery_current`, `charger_in1`, `charger_in2`, and `hard_estop` on the same line.
 
-Commands include `zero`, `stand`, `sit`, `charging-sit`, `damping`, `stop`, `velocity X Y YAW`, `velocity-control on|off`, and `gait NAME`. For BPX, `jump up|front|back|left|right` selects the five jump directions. Available actions depend on the robot model. Use the client’s `-h`/`--help` to view all commands without connecting. While connected, use `help` to list commands and gait/jump choices; `quit` (or `shutdown`) stops the server. An `OK` response means the server handled the command, not that the robot completed the action.
+Commands include `zero`, `stand`, `tumbler`, `sit`, `charging-sit`, `damping`, `stop`, `velocity X Y YAW`, `velocity-control on|off`, and `gait NAME`. For BPX, `jump up|front|back|left|right` selects the five jump directions. Available actions depend on the robot model. Use the client’s `-h`/`--help` to view all commands without connecting. While connected, use `help` to list commands and gait/jump choices; `quit` (or `shutdown`) stops the server. An `OK` response means the server handled the command, not that the robot completed the action.
 
 `charging-sit` calls `setChargingSitDown()` in both server implementations.
 Query `status` to read `motion_state=24(ChargingSitDown)` while executing,
@@ -885,6 +896,9 @@ or `last_motion_state=24(ChargingSitDown)` after exiting to damping.
 python3 example/motion_level_control_client_example.py charging-sit
 python3 example/motion_level_control_client_example.py status
 ```
+
+`tumbler` calls `setTumbler()` in both server implementations. Send it while the
+robot is lying down; `status` reports `gait=11(Tumbler)` during recovery.
 
 ## License
 

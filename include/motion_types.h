@@ -37,6 +37,7 @@ enum class MotionGait : uint8_t {
     WalkPhase = 6,
     PoseTracking = 7,
     Running = 8,
+    Tumbler = 11,
     Jump = 12,
 };
 

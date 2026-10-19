@@ -680,6 +680,7 @@ PyObject* motion_set_pose(PyObject* self, PyObject* args) {
     }
 
 MOTION_BOOL_METHOD(motion_set_stand_up, setStandUp)
+MOTION_BOOL_METHOD(motion_set_tumbler, setTumbler)
 MOTION_BOOL_METHOD(motion_set_pose_tracking, setPoseTracking)
 MOTION_BOOL_METHOD(motion_set_sit_down, setSitDown)
 MOTION_BOOL_METHOD(motion_set_charging_sit_down, setChargingSitDown)
@@ -910,6 +911,8 @@ PyMethodDef MotionMethods[] = {
     METHOD("setZeroPositionsFlag", motion_set_zero_positions_flag, METH_NOARGS, nullptr),
     METHOD("setWalk", motion_set_walk, METH_NOARGS, nullptr),
     METHOD("setRunning", motion_set_running, METH_NOARGS, nullptr),
+    METHOD("setTumbler", motion_set_tumbler, METH_NOARGS,
+           "BPX/BPX-Pro self-righting request from LyingDown; True means sent, not completed."),
     METHOD("setPoseTracking", motion_set_pose_tracking, METH_NOARGS,
            "Request pose tracking with zero axes; True means sent. Wait for gait feedback before nonzero input."),
     METHOD("setPose", motion_set_pose, METH_VARARGS,
@@ -1105,6 +1108,7 @@ PyMODINIT_FUNC PyInit__bpx_sdk() {
     add_int_constant(module, "MOTION_GAIT_WALK_PHASE", static_cast<long>(bpx_sdk::MotionGait::WalkPhase));
     add_int_constant(module, "MOTION_GAIT_POSE_TRACKING", static_cast<long>(bpx_sdk::MotionGait::PoseTracking));
     add_int_constant(module, "MOTION_GAIT_RUNNING", static_cast<long>(bpx_sdk::MotionGait::Running));
+    add_int_constant(module, "MOTION_GAIT_TUMBLER", static_cast<long>(bpx_sdk::MotionGait::Tumbler));
     add_int_constant(module, "MOTION_GAIT_JUMP", static_cast<long>(bpx_sdk::MotionGait::Jump));
     add_int_constant(module, "CONTROL_MODE_UNKNOWN", static_cast<long>(bpx_sdk::ControlMode::Unknown));
     add_int_constant(module, "CONTROL_MODE_REMOTE_CONTROL", static_cast<long>(bpx_sdk::ControlMode::RemoteControl));
