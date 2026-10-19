@@ -24,6 +24,9 @@
 
 ### 修复
 
+- 修复跳跃请求残留导致的重复触发：执行向前跳等跳跃动作后，下一次发送速度
+  指令会再次触发同一跳跃动作；跳跃请求现已在动作后清除，速度指令不会再
+  重复触发跳跃。
 - Windows wheel 构建关闭默认的 delvewheel 修复步骤：wheel 已通过
   `bpx_sdk/lib` 内置 `bpx_sdk_x86_64.dll` 并由 `os.add_dll_directory` 加载，
   cibuildwheel 4.x 默认启用的 delvewheel 找不到该 DLL，会导致构建失败。

@@ -27,6 +27,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Fix lingering jump requests re-triggering the previous jump: after a jump
+  action such as a forward jump, the next velocity command could fire the
+  same jump again. Jump requests are now cleared after the jump action, so
+  velocity commands no longer repeat it.
 - Disable the default delvewheel repair step in Windows wheel builds. The
   wheel already bundles `bpx_sdk_x86_64.dll` under `bpx_sdk/lib` and loads it
   via `os.add_dll_directory`; the delvewheel default introduced in
