@@ -22,6 +22,11 @@
 - Linux、Windows、macOS 新增 CPython 3.15 wheels。CPython 3.8 wheels 通过独立的
   cibuildwheel 3.4.1 旧工具链继续提供（cibuildwheel 4.x 已放弃 Python 3.8）。
 
+### 移除
+
+- 移除未实现的 Python 占位接口 `setUpright()` 及其类型提示；该方法此前始终
+  抛出 `NotImplementedError`。
+
 ### 修复
 
 - 修复跳跃请求残留导致的重复触发：执行向前跳等跳跃动作后，下一次发送速度

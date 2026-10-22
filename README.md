@@ -29,7 +29,7 @@ The tumbler self-righting request reports success when sent; completion is obser
 through gait feedback, and robot-side safety checks still apply.
 This prerelease is distributed through GitHub.
 
-Documentation updated: `2026-10-19`
+Documentation updated: `2026-10-22`
 
 The SDK offers three usage modes:
 
@@ -374,6 +374,10 @@ Control APIs:
 | `setChargingSitDown()` | Requests charging sit-down; returns whether the command was sent. |
 | `setDamping()`                             | Requests joint damping mode.                                                           |
 
+The unimplemented Python placeholder `setUpright()` has been removed. Use
+`setStandUp()` for four-legged standing, or `setBipedal()` / `setInvBipedal()`
+for BPX bipedal gaits.
+
 Call `setChargingSitDown()` after connection is ready and the robot is in motion mode.
 It sends target state `24`, Walk gait, and zero velocity; the robot still applies its
 stationary-time and state-transition checks. `true` means sent, not completed.
@@ -698,87 +702,6 @@ GitHub Actions, the full configured CPython matrix is built.
 
 The GitHub Actions workflow in `.github/workflows/build-wheels.yml` builds wheels in four parallel jobs: Windows AMD64, Linux x86_64, Linux aarch64, and macOS arm64. Linux uses native `ubuntu-22.04` and `ubuntu-22.04-arm` runners, one architecture per job, without QEMU emulation. Run it manually from the Actions tab or push a `v*` tag. The generated wheels are uploaded as workflow artifacts and can be installed with:
 
-### Remotely Building and Downloading Wheels with the Script
-
-With Python 3.8+ and the GitHub CLI installed, and after running `gh auth login`, run:
-
-```bash
-./scripts/build_wheels_github.py --ref prerelease/1.0.11
-```
-
-On Windows, use `python scripts/build_wheels_github.py --ref prerelease/1.0.11`.
-The script triggers `build-wheels.yml`, waits for the four platform jobs to build successfully,
-downloads and extracts the Actions artifacts, and collects the `.whl` files into `wheelhouse/` in
-this repository; the wheels themselves are left unchanged for pip installation.
-Use `--out-dir` to specify a different output directory; quote the path if it contains spaces:
-
-```bash
-./scripts/build_wheels_github.py --ref prerelease/1.0.11 --out-dir /path/to/wheelhouse
-```
-
-By default, the script identifies the GitHub repository from the current repository's `origin`; for
-this project that is usually `mirrormerobotics/bpx_sdk_open`. After forking, the default points to
-your own fork, which avoids triggering the upstream by mistake.
-Standard GitHub HTTPS and SSH URLs are supported; override with `--repo OWNER/REPO`. When the
-repository cannot be identified, it must be specified explicitly.
-If `--ref` is not specified, the script uses the remote branch matching the current local branch
-name; this project's default branch is `master`. **The build uses the pushed remote code and SDK
-libraries**; newly downloaded local `.so`, `.dll`, `.lib`, `.dylib` files and version headers that
-have not been committed or pushed do not participate in the remote build.
-The script tracks the run with the run ID returned by the GitHub API, polling every 10 seconds by
-default and waiting up to 7200 seconds; adjust with `--poll-interval` and `--timeout`. It relies on
-the GitHub.com `2026-03-10` API.
-Each poll shows each platform job's status, current step, step count, job elapsed time, and an
-overall estimated percentage.
-The percentage is the equally weighted share of finished steps per platform (failed and skipped
-steps included), with platforms that have not appeared counted as 0%. It does not reflect actual
-compile volume, success rate, or remaining time. The `Build wheels` step contains builds for
-multiple Python versions, and GitHub's step API does not expose its internal percentage, so this
-stage may stay at the same percentage for a long time; the elapsed time still updates.
-On failure, the script shows the failed step and a link to the job. Transient network failures while
-querying status or job details are retried automatically until the original wait timeout expires.
-In supported terminals, progress refreshes in place: running and cancelled are shown in yellow,
-success in green, and failure in red.
-Redirected output keeps per-poll logs; colors are disabled when output is redirected or `NO_COLOR`
-is set.
-
-The four platform artifacts are first downloaded to a temporary directory, then checked for wheel
-ZIP integrity, metadata, package version consistency, and coverage of Linux x86_64/aarch64, Windows
-AMD64, and macOS arm64. They are written to the output directory only after all checks pass.
-Wheels with the same name are replaced and other files are kept; the Python package is not installed
-automatically. The existing workflow is responsible for the full CPython build matrix and wheel
-import tests, so the download script does not re-verify every Python version.
-
-Triggering a new build requires write permission on the target repository; regular users can log in
-with the GitHub CLI and use `--run-id` to download existing upstream artifacts (read permission
-required, and the artifacts must not have expired), or fork and trigger the build in their own
-repository. If `origin` points to your own fork and you want to download upstream artifacts, also
-specify `--repo mirrormerobotics/bpx_sdk_open`.
-
-A wait timeout or Ctrl+C does not cancel the remote build. Use the printed run ID to resume waiting
-and downloading:
-
-```bash
-./scripts/build_wheels_github.py --run-id 123456789 --out-dir /path/to/wheelhouse
-```
-
-All progress, help, and script messages are in Chinese; commands, paths, and original GitHub
-identifiers are kept as-is.
-Account billing is not queried by default. Maintainers can add `--show-usage` to show Actions usage,
-the plan's included quota, and the estimated remaining minutes based on a historical multiplier
-after the download completes; use `--usage-only` to query usage only.
-Standard GitHub-hosted runners are free for public repositories, but the billing query covers all
-repositories under the owning account.
-Querying organization billing requires admin identity and the corresponding token permissions;
-regular users do not need billing permissions to download artifacts.
-Billing data may be delayed, and the estimate is not a GitHub-confirmed balance; a failed
-`--show-usage` query does not affect the exit status of a successful download, while a failed
-`--usage-only` query returns a non-zero status.
-This script does not change the existing workflow's automatic trigger rules, and it does not publish
-a Release or upload to PyPI.
-
-To install from a local wheelhouse:
-
 ```bash
 pip3 install --no-index --find-links wheelhouse bpx-sdk-open
 ```
@@ -842,6 +765,19 @@ previous = motion.getLastMotionState()
 if current == bpx_sdk.MotionState.ChargingSitDown:
     print("charging sit-down in progress")
 print("previous state:", previous)
+```
+
+Python 1.0.11 adds `MotionLevelControl.setTumbler() -> bool` and
+`MotionGait.Tumbler = 11` for the BPX/BPX-Pro self-righting request while the
+robot is in `MotionState.LyingDown`:
+
+```python
+# motion is an already-connected MotionLevelControl; robot is lying down.
+sent = motion.setTumbler()
+print("recovery request sent:", sent)
+# Poll feedback during subsequent control-loop iterations.
+if motion.getCurrentGait() == bpx_sdk.MotionGait.Tumbler:
+    print("self-righting in progress")
 ```
 
 Python method names match the C++ SDK. Read APIs return a

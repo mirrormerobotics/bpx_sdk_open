@@ -685,11 +685,6 @@ MOTION_BOOL_METHOD(motion_set_pose_tracking, setPoseTracking)
 MOTION_BOOL_METHOD(motion_set_sit_down, setSitDown)
 MOTION_BOOL_METHOD(motion_set_charging_sit_down, setChargingSitDown)
 MOTION_BOOL_METHOD(motion_set_damping, setDamping)
-PyObject* motion_set_upright(PyObject*, PyObject*) {
-    PyErr_SetString(PyExc_NotImplementedError,
-                    "setUpright is declared in the public header but is not exported by the bundled BPX SDK shared library");
-    return nullptr;
-}
 
 PyObject* joint_set_joint_command(PyObject* self, PyObject* args) {
     JointLevelControl* cpp = joint_cpp(self);
@@ -935,7 +930,6 @@ PyMethodDef MotionMethods[] = {
     METHOD("setChargingSitDown", motion_set_charging_sit_down, METH_NOARGS,
            "Request charging sit-down; True means sent, not completed. Read motion-state feedback for progress."),
     METHOD("setDamping", motion_set_damping, METH_NOARGS, nullptr),
-    METHOD("setUpright", motion_set_upright, METH_NOARGS, nullptr),
     {nullptr, nullptr, 0, nullptr},
 };
 

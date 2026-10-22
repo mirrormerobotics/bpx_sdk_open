@@ -15,6 +15,7 @@ for kind in (bpx_sdk.RequestRobotState, bpx_sdk.MotionLevelControl, bpx_sdk.Join
     assert robot.getChargerIn1() is None
     assert robot.getChargerIn2() is None
 motion = bpx_sdk.MotionLevelControl()
+assert not hasattr(motion, "setUpright")
 assert bpx_sdk.MotionGait.PoseTracking == 7
 assert bpx_sdk.MotionGait.Tumbler == 11
 assert motion.setTumbler() is False

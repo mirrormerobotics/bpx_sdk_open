@@ -25,6 +25,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   remain available through a legacy cibuildwheel 3.4.1 pass, because
   cibuildwheel 4.x dropped Python 3.8 support.
 
+### Removed
+
+- Remove the unimplemented Python `setUpright()` placeholder and its type hint;
+  the method previously always raised `NotImplementedError`.
+
 ### Fixed
 
 - Fix lingering jump requests re-triggering the previous jump: after a jump

@@ -324,6 +324,7 @@ class RobotFeaturesTest(unittest.TestCase):
         self.assertEqual(bpx_sdk.MotionGait.Jump, 12)
         self.assertEqual(bpx_sdk.MotionState.ChargingSitDown, 24)
         sdk = bpx_sdk.MotionLevelControl()
+        self.assertFalse(hasattr(sdk, "setUpright"))
         for name in ('getRobotSerialNumber', 'getRobotModel', 'getControlMode', 'getChargerIn1', 'getChargerIn2', 'setUpJump', 'setFrontJump',
                      'setBackJump', 'setLeftJump', 'setRightJump', 'setChargingSitDown', 'setTumbler'):
             with self.assertRaises(TypeError):

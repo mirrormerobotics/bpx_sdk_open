@@ -27,11 +27,7 @@ python3 -c "import bpx_sdk; print(bpx_sdk.__version__)"
 `v1.0.11-rc.1`。倒地爬起请求返回 `true` 仅表示请求已发送，完成情况需通过
 步态反馈观察，机器人侧安全检查仍然生效。本次预发布通过 GitHub 分发。
 
-如需远程构建，执行 `python3 scripts/build_wheels_github.py --ref prerelease/1.0.11`。
-脚本默认从当前仓库的 `origin` 自动识别目标，下载完成后默认不查询账单；维护者可
-按需添加 `--show-usage`，或使用 `--usage-only` 单独查询。
-
-文档更新日期：`2026-10-19`
+文档更新日期：`2026-10-22`
 
 SDK 提供三种使用模式：
 
@@ -402,6 +398,9 @@ if (!motion.connect()) {
 | `setSitDown()`                             | 请求坐下模式。                        |
 | `setChargingSitDown()` | 请求充电坐下；返回命令是否发送成功。 |
 | `setDamping()`                             | 请求关节阻尼模式。                      |
+
+已移除未实现的 Python 占位接口 `setUpright()`。四足起立使用 `setStandUp()`，
+BPX 双足正立或倒立使用 `setBipedal()` / `setInvBipedal()`。
 
 连接就绪且机器人处于运动模式后，调用 `setChargingSitDown()` 请求充电坐下。
 它发送目标状态 `24`、Walk 步态和零速度；机器端仍执行静止时间及状态切换检查。
