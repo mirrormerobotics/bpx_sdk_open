@@ -6,32 +6,7 @@
 
 SDK 版本：`1.0.10`
 
-### 1.0.10 预发布（rc.1）
-
-当前分支提供 **v1.0.10-rc.1 预发布版**，用于试用验证。原生 SDK、Python 包和
-wheel 版本仍为 `1.0.10`，候选版编号由 GitHub 标签和 Release 标识；稳定分支
-`master` 继续保留 1.0.9。
-
-从[预发布页面](https://github.com/mirrormerobotics/bpx_sdk_open/releases/tag/v1.0.10-rc.1)
-下载与操作系统、架构和 Python 版本匹配的 wheel。附件包括 CPython 3.8–3.14 在
-Linux x86_64/aarch64、Windows AMD64 和 macOS arm64 上的 28 个 wheel，以及
-用于校验的 `SHA256SUMS`。
-
-```bash
-python3 -m pip install --no-index --find-links /path/to/downloaded --force-reinstall bpx-sdk-open==1.0.10
-python3 -c "import bpx_sdk; print(bpx_sdk.__version__)"
-```
-
-请将 `/path/to/downloaded` 替换为存放已下载 wheel 的目录。替换另一个同为 `1.0.10` 的 wheel
-时使用 `--force-reinstall`。构建 C++ 示例或从源码安装前，请先检出标签
-`v1.0.10-rc.1`。硬急停状态和活动故障通道需要配套机器人固件；收到对应反馈前，
-查询返回 `None`/false，旧固件未发布这些字段时同样如此。本次预发布通过 GitHub 分发。
-
-如需远程构建，执行 `python3 scripts/build_wheels_github.py --ref prerelease/1.0.10`。
-脚本默认从当前仓库的 `origin` 自动识别目标，下载完成后默认不查询账单；维护者可
-按需添加 `--show-usage`，或使用 `--usage-only` 单独查询。
-
-文档更新日期：`2026-10-08`
+文档更新日期：`2026-10-28`
 
 SDK 提供三种使用模式：
 
