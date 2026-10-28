@@ -6,28 +6,7 @@
 
 SDK 版本：`1.0.11`
 
-### 1.0.11 预发布（rc.1）
-
-当前分支提供 **v1.0.11-rc.1 预发布版**，用于试用验证。原生 SDK、Python 包和
-wheel 版本均为 `1.0.11`，候选版编号由 GitHub 标签和 Release 标识；稳定分支
-`master` 继续保留 1.0.9。
-
-从[预发布页面](https://github.com/mirrormerobotics/bpx_sdk_open/releases/tag/v1.0.11-rc.1)
-下载与操作系统、架构和 Python 版本匹配的 wheel。附件包括 CPython 3.8–3.15 在
-Linux x86_64/aarch64、Windows AMD64 和 macOS arm64 上的 32 个 wheel，以及
-用于校验的 `SHA256SUMS`。
-
-```bash
-python3 -m pip install --no-index --find-links /path/to/downloaded --force-reinstall bpx-sdk-open==1.0.11
-python3 -c "import bpx_sdk; print(bpx_sdk.__version__)"
-```
-
-请将 `/path/to/downloaded` 替换为存放已下载 wheel 的目录。替换另一个同为 `1.0.11` 的 wheel
-时使用 `--force-reinstall`。构建 C++ 示例或从源码安装前，请先检出标签
-`v1.0.11-rc.1`。倒地爬起请求返回 `true` 仅表示请求已发送，完成情况需通过
-步态反馈观察，机器人侧安全检查仍然生效。本次预发布通过 GitHub 分发。
-
-文档更新日期：`2026-10-22`
+文档更新日期：`2026-10-28`
 
 SDK 提供三种使用模式：
 

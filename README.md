@@ -6,30 +6,7 @@
 
 SDK version: `1.0.11`
 
-### 1.0.11 preview (rc.1)
-
-This branch provides the **v1.0.11-rc.1 prerelease** for evaluation. The native SDK,
-Python package, and wheel versions are `1.0.11`; the candidate identifier is
-carried by the GitHub tag and Release. The stable `master` branch remains on 1.0.9.
-
-Download the wheel matching your OS, architecture, and Python version from the
-[prerelease](https://github.com/mirrormerobotics/bpx_sdk_open/releases/tag/v1.0.11-rc.1).
-The release includes 32 wheels for CPython 3.8–3.15 across Linux x86_64/aarch64,
-Windows AMD64, and macOS arm64, plus `SHA256SUMS` for verification.
-
-```bash
-python3 -m pip install --no-index --find-links /path/to/downloaded --force-reinstall bpx-sdk-open==1.0.11
-python3 -c "import bpx_sdk; print(bpx_sdk.__version__)"
-```
-
-Replace `/path/to/downloaded` with the directory containing your downloaded wheel. Use `--force-reinstall`
-when replacing another wheel that also reports version `1.0.11`.
-For C++ examples or a source install, check out `v1.0.11-rc.1` before building.
-The tumbler self-righting request reports success when sent; completion is observed
-through gait feedback, and robot-side safety checks still apply.
-This prerelease is distributed through GitHub.
-
-Documentation updated: `2026-10-22`
+Documentation updated: `2026-10-28`
 
 The SDK offers three usage modes:
 
