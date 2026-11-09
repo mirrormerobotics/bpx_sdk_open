@@ -9,10 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [1.0.10-rc.1] - 2026-10-08
-
-GitHub prerelease rc.1; SDK and Python package versions remain `1.0.10`.
-The 28 bundled wheels are reused unchanged from the current SDK snapshot.
+## [1.0.10] - 2026-09-11
 
 ### Added
 
@@ -283,8 +280,8 @@ The 28 bundled wheels are reused unchanged from the current SDK snapshot.
 - Initial Linux x86_64 and aarch64 shared libraries, CMake configuration, and
   C++ examples.
 
-[Unreleased]: https://github.com/mirrormerobotics/bpx_sdk_open/compare/v1.0.10-rc.1...HEAD
-[1.0.10-rc.1]: https://github.com/mirrormerobotics/bpx_sdk_open/compare/v1.0.9...v1.0.10-rc.1
+[Unreleased]: https://github.com/mirrormerobotics/bpx_sdk_open/compare/v1.0.10...HEAD
+[1.0.10]: https://github.com/mirrormerobotics/bpx_sdk_open/compare/v1.0.9...v1.0.10
 [1.0.9]: https://github.com/mirrormerobotics/bpx_sdk_open/compare/v1.0.8...v1.0.9
 [1.0.8]: https://github.com/mirrormerobotics/bpx_sdk_open/compare/v1.0.7...v1.0.8
 [1.0.7]: https://github.com/mirrormerobotics/bpx_sdk_open/compare/v1.0.6...v1.0.7

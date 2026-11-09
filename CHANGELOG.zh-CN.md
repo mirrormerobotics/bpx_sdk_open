@@ -9,10 +9,7 @@
 
 ## [未发布]
 
-## [1.0.10-rc.1] - 2026-10-08
-
-GitHub 预发布 rc.1；SDK 和 Python 包版本保持 `1.0.10`。
-复用当前 SDK 快照中的 28 个 wheel，文件内容保持不变。
+## [1.0.10] - 2026-09-11
 
 ### 新增
 
@@ -245,8 +242,8 @@ GitHub 预发布 rc.1；SDK 和 Python 包版本保持 `1.0.10`。
 - 首次提供用于机器人状态查询、运动级控制和关节级控制的 C++ SDK。
 - 首次提供 Linux x86_64 和 aarch64 共享库、CMake 配置及 C++ 示例。
 
-[未发布]: https://github.com/mirrormerobotics/bpx_sdk_open/compare/v1.0.10-rc.1...HEAD
-[1.0.10-rc.1]: https://github.com/mirrormerobotics/bpx_sdk_open/compare/v1.0.9...v1.0.10-rc.1
+[未发布]: https://github.com/mirrormerobotics/bpx_sdk_open/compare/v1.0.10...HEAD
+[1.0.10]: https://github.com/mirrormerobotics/bpx_sdk_open/compare/v1.0.9...v1.0.10
 [1.0.9]: https://github.com/mirrormerobotics/bpx_sdk_open/compare/v1.0.8...v1.0.9
 [1.0.8]: https://github.com/mirrormerobotics/bpx_sdk_open/compare/v1.0.7...v1.0.8
 [1.0.7]: https://github.com/mirrormerobotics/bpx_sdk_open/compare/v1.0.6...v1.0.7
